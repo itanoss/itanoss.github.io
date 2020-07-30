@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en"><generator uri="https://jekyllrb.com/" version="3.8.7">Jekyll</generator><link href="https://blog.itanoss.kr/en/feed.xml" rel="self" type="application/atom+xml" /><link href="https://blog.itanoss.kr/en/" rel="alternate" type="text/html" hreflang="en" /><updated>2020-07-30T22:56:33+09:00</updated><id>https://blog.itanoss.kr/en/feed.xml</id><title type="html">Joonhyeok Im</title><subtitle>Software development blog written by Joonhyeok Im</subtitle><entry><title type="html">Law of Demeter for Gradle modules</title><link href="https://blog.itanoss.kr/en/law-of-demeter-for-gradle-modules/" rel="alternate" type="text/html" title="Law of Demeter for Gradle modules" /><published>2020-07-30T00:00:00+09:00</published><updated>2020-07-30T00:00:00+09:00</updated><id>https://blog.itanoss.kr/en/gradle-module-dip</id><content type="html" xml:base="https://blog.itanoss.kr/en/law-of-demeter-for-gradle-modules/">&lt;p&gt;Once you decide to make a reference from a module which someone (co-worker) created, you may meet an error similar to the following.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Cannot access class 'retrofit2.Response'. Check your module classpath 
+for missing or conflicting dependencies
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h1 id=&quot;why&quot;&gt;Why?&lt;/h1&gt;
+
+&lt;p&gt;The reason it cannot find related dependencies is that the dependency as reference of our project exposes third-party dependency onto its API surfaces. In other words, once any API surfaces contain another dependencies as &lt;code class=&quot;highlighter-rouge&quot;&gt;implementation&lt;/code&gt; dependency and at least one calls to the API surfaces exist, dependency problem occurs like the above.&lt;/p&gt;
+
+&lt;p&gt;Let’s say our sample project has a controller to use a repository service in a library. The method we want to use is dependent to &lt;code class=&quot;highlighter-rouge&quot;&gt;Response&lt;/code&gt; class in retofit.&lt;/p&gt;
+
+&lt;script src=&quot;https://cdnjs.cloudflare.com/ajax/libs/mermaid/8.6.4/mermaid.min.js&quot;&gt;&lt;/script&gt;
+&lt;div class=&quot;mermaid&quot;&gt;
+classDiagram
+  RepositoryService ..&amp;gt; Response
+  UserController o-- RepositoryService
+  class RepositoryService{
+    &amp;lt;&amp;lt;dependency&amp;gt;&amp;gt;
+    +findRepositories() Response~RepoList~
+  }
+  class UserController{
+    &amp;lt;&amp;lt;our_project&amp;gt;&amp;gt;
+    listAllRepositoryNames(String username)
+  }
+  &amp;lt;&amp;lt;transitive_dependency&amp;gt;&amp;gt; Response
+&lt;/div&gt;
+
+&lt;div class=&quot;language-kotlin highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;fun&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;findRepositories&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;username&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;retrofit2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;Response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;List&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;Repo&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;&amp;gt;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h1 id=&quot;attractive-solution&quot;&gt;Attractive solution&lt;/h1&gt;
+
+&lt;p&gt;First, as an attractive solution, the problem can be resolved by adding the transitive dependencies if we don’t have modification permission on direct dependency.&lt;/p&gt;
+
+&lt;div class=&quot;language-gradle highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c1&quot;&gt;// your_project/build.gradle&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;dependencies&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;// ...&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;implementation&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;com.squareup.retrofit2:retrofit:${retrofitVersion}&quot;&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;But there are several problems. This is brute-force solution. Until no more dependency problem, we need to add dependencies one by one recursively because we don’t know exactly what dependencies are needed on the target dependency. Moreover, this is bad module design because the client needs to know all the transitive dependencies. Finally the more dependencies to manage, the hard we control the project, which makes the resulting quality poor and the complexity higher.&lt;/p&gt;
+
+&lt;p&gt;Second, if we have full control of the dependency, the transitive dependencies can be added as &lt;code class=&quot;highlighter-rouge&quot;&gt;api&lt;/code&gt; in gradle. If you are curious about the difference between &lt;code class=&quot;highlighter-rouge&quot;&gt;implementation&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;api&lt;/code&gt;, &lt;a href=&quot;https://docs.gradle.org/current/userguide/java_library_plugin.html#sec:java_library_separation&quot;&gt;here&lt;/a&gt; is the best official guide to explain it.&lt;/p&gt;
+
+&lt;div class=&quot;language-gradle highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c1&quot;&gt;// dependency/build.gradle&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;plugins&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;id&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'java-library'&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;dependencies&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;// ...&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;api&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;com.squareup.retrofit2:retrofit:${retrofitVersion}&quot;&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h1 id=&quot;law-of-demeter&quot;&gt;Law of Demeter&lt;/h1&gt;
+
+&lt;p&gt;There are tons of articles about &lt;em&gt;Law of Demeter&lt;/em&gt;. Briefly explaining, this is a design guideline in order to achieve loose coupling among classes. This advocates&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;ul&gt;
+    &lt;li&gt;Each unit should have only limited knowledge about other units: only units “closely” related to the current unit.&lt;/li&gt;
+    &lt;li&gt;Each unit should only talk to its friends; don’t talk to strangers.&lt;/li&gt;
+    &lt;li&gt;Only talk to your immediate friends. &lt;sup id=&quot;fnref:1&quot;&gt;&lt;a href=&quot;#fn:1&quot; class=&quot;footnote&quot;&gt;1&lt;/a&gt;&lt;/sup&gt;&lt;/li&gt;
+  &lt;/ul&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Our module problem is said to be violation of Law of Demeter. It is decribed exactly in Clean Code&lt;sup id=&quot;fnref:2&quot;&gt;&lt;a href=&quot;#fn:2&quot; class=&quot;footnote&quot;&gt;2&lt;/a&gt;&lt;/sup&gt;.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;h4 id=&quot;g36-avoid-transitive-navigation&quot;&gt;G36: Avoid Transitive Navigation&lt;/h4&gt;
+
+  &lt;p&gt;In general we don’t want a single module to know much about its collaborators. More specifically, if A collaborates with B, and B collaborates with C, we don’t want modules that use A to know about C.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h1 id=&quot;better-solution&quot;&gt;Better solution&lt;/h1&gt;
+
+&lt;p&gt;Again, if you have full control of the library, you can improve it with good class design. To follow the guideline, the client module doesn’t need to know any classes of retrofit.
+Rethink the purpose of the target method(API). Focus on the things the client really need.&lt;/p&gt;
+
+&lt;p&gt;In our sample project, the client only wants the content of the response, which is a list of repositories. It doesn’t care about response status. Moreover the client currently uses the response to determine whether the result is suceesfully fetched.&lt;/p&gt;
+
+&lt;p&gt;So the method can return the list of repositories or throw an exception. Simple.&lt;/p&gt;
+
+&lt;div class=&quot;language-kotlin highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;fun&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;findRepositories&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;username&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;List&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;Repo&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Now the client can more focus on the structure it is interested in. You can check out full source code of sample project on &lt;a href=&quot;https://github.com/itanoss/blog-examples/tree/master/law-of-demeter-for-gradle-modules&quot;&gt;Github&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;With another suggestion, you can create another class wrapped &lt;code class=&quot;highlighter-rouge&quot;&gt;List&amp;lt;Repo&amp;gt;&lt;/code&gt; instead of &lt;code class=&quot;highlighter-rouge&quot;&gt;retrofit2.Response&amp;lt;List&amp;lt;Repo&amp;gt;&amp;gt;&lt;/code&gt;. If the client want some of response information which the library is fine to expose, this approach is preferable. For example, with same objectives (= determines only whether the transaction is successful or not), you can use &lt;code class=&quot;highlighter-rouge&quot;&gt;Optional&amp;lt;List&amp;lt;Repo&amp;gt;&amp;gt;&lt;/code&gt; as the return type.&lt;/p&gt;
+
+&lt;div class=&quot;footnotes&quot;&gt;
+  &lt;ol&gt;
+    &lt;li id=&quot;fn:1&quot;&gt;
+      &lt;p&gt;https://en.wikipedia.org/wiki/Law_of_Demeter &lt;a href=&quot;#fnref:1&quot; class=&quot;reversefootnote&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:2&quot;&gt;
+      &lt;p&gt;See G36, Chapter 17 in Clean Code by Robert C. Martin. &lt;a href=&quot;#fnref:2&quot; class=&quot;reversefootnote&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+  &lt;/ol&gt;
+&lt;/div&gt;</content><author><name></name></author><category term="Java" /><category term="Gradle" /><category term="Software Engineering" /><summary type="html">Once you decide to make a reference from a module which someone (co-worker) created, you may meet an error similar to the following.</summary></entry><entry><title type="html">Spring Custom Annotation</title><link href="https://blog.itanoss.kr/en/spring-custom-annotation/" rel="alternate" type="text/html" title="Spring Custom Annotation" /><published>2019-11-01T00:00:00+09:00</published><updated>2019-11-01T00:00:00+09:00</updated><id>https://blog.itanoss.kr/en/spring-custom-annotation</id><content type="html" xml:base="https://blog.itanoss.kr/en/spring-custom-annotation/">&lt;p&gt;You may want to modify configuration values and bean definition in some cases for your Spring application. I have also similar situation from my project in order to activate some modules commonly. How do we take refactoring for such cases? My answer was &lt;strong&gt;Annotation&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;h1 id=&quot;example&quot;&gt;Example&lt;/h1&gt;
+
+&lt;p&gt;For an instance, we assume that we want to make a log about execution time of specific methods as a function of APM(Application Performance Logging).&lt;/p&gt;
+
+&lt;div class=&quot;language-kotlin highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;val&lt;/span&gt; &lt;span class=&quot;py&quot;&gt;repository&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;ItemRepository&lt;/span&gt;
+
+&lt;span class=&quot;nd&quot;&gt;@LogExecutionTime&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;fun&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;loadItems&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;criteria&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;ItemFetchCriteria&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;List&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;Item&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;c1&quot;&gt;//...&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;We can collect the execution time of &lt;code class=&quot;highlighter-rouge&quot;&gt;loadItems&lt;/code&gt; method that is annotated with &lt;code class=&quot;highlighter-rouge&quot;&gt;@LogExecutionTime&lt;/code&gt; and show it to standard output via the below implementation with Spring AOP:&lt;/p&gt;
+&lt;div class=&quot;language-kotlin highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nd&quot;&gt;@Aspect&lt;/span&gt;
+&lt;span class=&quot;kd&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;LogExeucutionTimeApsect&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;nd&quot;&gt;@Around&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;@annotation(LogExecutionTime)&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;fun&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;logExecutionTime&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pjp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;ProceedingJoinPoint&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Any&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;?&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;kd&quot;&gt;val&lt;/span&gt; &lt;span class=&quot;py&quot;&gt;signature&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pjp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;signature&lt;/span&gt;
+        &lt;span class=&quot;kd&quot;&gt;val&lt;/span&gt; &lt;span class=&quot;py&quot;&gt;typeName&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;signature&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;declaringType&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;simpleName&lt;/span&gt;
+        &lt;span class=&quot;kd&quot;&gt;val&lt;/span&gt; &lt;span class=&quot;py&quot;&gt;methodName&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;signature&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;
+        &lt;span class=&quot;kd&quot;&gt;val&lt;/span&gt; &lt;span class=&quot;py&quot;&gt;start&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;System&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;currentTimeMillis&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;try&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pjp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;proceed&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;finally&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;kd&quot;&gt;val&lt;/span&gt; &lt;span class=&quot;py&quot;&gt;end&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;System&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;currentTimeMillis&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+            &lt;span class=&quot;nf&quot;&gt;println&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;%s.%s execution time : %dms&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;format&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;typeName&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;methodName&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;end&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;start&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Well, of course, an annotation to activate in the configuration is needed.&lt;/p&gt;
+&lt;div class=&quot;language-kotlin highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nd&quot;&gt;@Configuration&lt;/span&gt;
+&lt;span class=&quot;nd&quot;&gt;@EnableAspectJAutoProxy&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// AOP is enabled&lt;/span&gt;
+&lt;span class=&quot;kd&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;YourAppConfiguration&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;nd&quot;&gt;@Bean&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;fun&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;performanceLoggingAspect&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;PerformanceLoggingAspect&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Now it works. Even though this is a simple example, it is unreasonable to copy and paste this code block to all related projects. (&lt;em&gt;To introduce more complicated situation, we may use logging framework such as &lt;a href=&quot;http://www.slf4j.org/&quot;&gt;slf4j&lt;/a&gt; instead of pure &lt;code class=&quot;highlighter-rouge&quot;&gt;println&lt;/code&gt;, and trigger direct API via &lt;a href=&quot;https://square.github.io/retrofit/&quot;&gt;Retrofit&lt;/a&gt; or &lt;a href=&quot;https://github.com/OpenFeign/feign&quot;&gt;Feign&lt;/a&gt; in order to send log rather than popular logging solutions like &lt;a href=&quot;https://www.fluentd.org/&quot;&gt;fluentd&lt;/a&gt;, &lt;a href=&quot;https://www.elastic.co/guide/en/logstash/current/getting-started-with-logstash.html&quot;&gt;logstash&lt;/a&gt; or &lt;a href=&quot;https://www.elastic.co/guide/en/beats/filebeat/current/filebeat-getting-started.html&quot;&gt;filebeat&lt;/a&gt;. With these cases and related configuration, our code must be much longer and more complicated.&lt;/em&gt;)&lt;/p&gt;
+
+&lt;p&gt;We want to wrap all the upper configuration and classes with a single package and make referenced projects dependent to the wrapped module. &lt;strong&gt;This can be realized with the following simple annotation like &lt;code class=&quot;highlighter-rouge&quot;&gt;@EnableXXX&lt;/code&gt; pattern.&lt;/strong&gt;&lt;/p&gt;
+&lt;div class=&quot;language-kotlin highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nd&quot;&gt;@SpringBootApplication&lt;/span&gt;
+&lt;span class=&quot;nd&quot;&gt;@EnablePerformanceLogging&lt;/span&gt;
+&lt;span class=&quot;kd&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;YourApp&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h1 id=&quot;import-annotation-usage&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;@Import&lt;/code&gt; annotation usage&lt;/h1&gt;
+
+&lt;p&gt;By the way, &lt;a href=&quot;https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/context/annotation/Import.html&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;@Import&lt;/code&gt;&lt;/a&gt; annotation helps us configuring several beans flexibly. It generally loads &lt;code class=&quot;highlighter-rouge&quot;&gt;@Configuration&lt;/code&gt; classes, component classes, and even &lt;a href=&quot;https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/context/annotation/ImportSelector.html&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;ImportSelector&lt;/code&gt;&lt;/a&gt; which is able to load seperate configurations in some cases.&lt;/p&gt;
+
+&lt;p&gt;With &lt;code class=&quot;highlighter-rouge&quot;&gt;@Import&lt;/code&gt; annotation, we are able to activate  &lt;code class=&quot;highlighter-rouge&quot;&gt;YourAppConfiguration&lt;/code&gt; class. Let us design the process like the below:&lt;/p&gt;
+&lt;ol&gt;
+  &lt;li&gt;The &lt;code class=&quot;highlighter-rouge&quot;&gt;Main-Class&lt;/code&gt;, &lt;code class=&quot;highlighter-rouge&quot;&gt;YourApp&lt;/code&gt; triggers &lt;code class=&quot;highlighter-rouge&quot;&gt;@EnablePerformanceLogging&lt;/code&gt; loading.&lt;/li&gt;
+  &lt;li&gt;Load the configuration annotated with &lt;code class=&quot;highlighter-rouge&quot;&gt;@Import&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Enable AOP with &lt;code class=&quot;highlighter-rouge&quot;&gt;@EnableAspectJAutoProxy&lt;/code&gt; in the configuration and load Aspect class as a bean.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Finally, &lt;code class=&quot;highlighter-rouge&quot;&gt;@EnablePerformanceLogging&lt;/code&gt; annotation and the configuration class are implemented like the below:&lt;/p&gt;
+&lt;div class=&quot;language-kotlin highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nd&quot;&gt;@Target&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;AnnotationTarget&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;CLASS&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;nd&quot;&gt;@Retention&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;AnnotationRetention&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;RUNTIME&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;nd&quot;&gt;@Import&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;PerformanceLoggingConfiguration&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;class&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;annotation&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;EnablePerformanceLogging&lt;/span&gt;
+
+&lt;span class=&quot;nd&quot;&gt;@EnableAspectJAutoProxy&lt;/span&gt;
+&lt;span class=&quot;kd&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;PerformanceLoggingConfiguration&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;nd&quot;&gt;@Bean&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;fun&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;aspect&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;PerformanceLoggingAspect&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;All remained todo is package this related classes as a common Java library.&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://github.com/itanoss/blog-examples/blob/master/spring-custom-annotation&quot;&gt;Here&lt;/a&gt; is the example source code. The running output is like the following:&lt;/p&gt;
+
+&lt;script type=&quot;text/javascript&quot; src=&quot;https://asciinema.org/a/278065.js&quot; id=&quot;asciicast-278065&quot; async=&quot;async&quot;&gt;&lt;/script&gt;</content><author><name></name></author><category term="Java" /><summary type="html">You may want to modify configuration values and bean definition in some cases for your Spring application. I have also similar situation from my project in order to activate some modules commonly. How do we take refactoring for such cases? My answer was Annotation.</summary></entry></feed>

@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ko"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.6.1 -->
+<title>Command line으로 VirtualBox VM 생성하기 | Joonhyeok Im</title>
+<meta name="generator" content="Jekyll v3.8.7" />
+<meta property="og:title" content="Command line으로 VirtualBox VM 생성하기" />
+<meta property="og:locale" content="ko" />
+<meta name="description" content="사내에서 신규 노트북을 지급받으면 헌(!) 노트북을 반납해야 하는 정책이 있는데 헌 노트북을 폐기 처분 하는 것이 아니라 특정 목적으로 유휴장비로 활용할 수 있는 제도가 있습니다. 비용이 추가적으로 들지 않고 다른 서버를 확보하는 데 복잡한데 반해 매우 간편히 받을 수 있어 프로젝트에서 개발 서버로 사용할 때가 꽤 있는데, 아쉽게도 말 그대로 헌 것이기에 성능이 그다지 좋지는 않습니다. 제 경우에는 대게 성능을 최적화해서 쓰기 위해 GUI없이 서버 운영체제로 설치합니다. 그러나 가상화를 써야하는 시점에 난관에 부딪히게 됩니다." />
+<meta property="og:description" content="사내에서 신규 노트북을 지급받으면 헌(!) 노트북을 반납해야 하는 정책이 있는데 헌 노트북을 폐기 처분 하는 것이 아니라 특정 목적으로 유휴장비로 활용할 수 있는 제도가 있습니다. 비용이 추가적으로 들지 않고 다른 서버를 확보하는 데 복잡한데 반해 매우 간편히 받을 수 있어 프로젝트에서 개발 서버로 사용할 때가 꽤 있는데, 아쉽게도 말 그대로 헌 것이기에 성능이 그다지 좋지는 않습니다. 제 경우에는 대게 성능을 최적화해서 쓰기 위해 GUI없이 서버 운영체제로 설치합니다. 그러나 가상화를 써야하는 시점에 난관에 부딪히게 됩니다." />
+<link rel="canonical" href="https://blog.itanoss.kr/ko/command-line%EC%9C%BC%EB%A1%9C-virtualbox-vm-%EC%83%9D%EC%84%B1%ED%95%98%EA%B8%B0/" />
+<meta property="og:url" content="https://blog.itanoss.kr/ko/command-line%EC%9C%BC%EB%A1%9C-virtualbox-vm-%EC%83%9D%EC%84%B1%ED%95%98%EA%B8%B0/" />
+<meta property="og:site_name" content="Joonhyeok Im" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2015-12-14T09:03:02+09:00" />
+<script type="application/ld+json">
+{"headline":"Command line으로 VirtualBox VM 생성하기","dateModified":"2015-12-14T09:03:02+09:00","datePublished":"2015-12-14T09:03:02+09:00","mainEntityOfPage":{"@type":"WebPage","@id":"https://blog.itanoss.kr/ko/command-line%EC%9C%BC%EB%A1%9C-virtualbox-vm-%EC%83%9D%EC%84%B1%ED%95%98%EA%B8%B0/"},"url":"https://blog.itanoss.kr/ko/command-line%EC%9C%BC%EB%A1%9C-virtualbox-vm-%EC%83%9D%EC%84%B1%ED%95%98%EA%B8%B0/","description":"사내에서 신규 노트북을 지급받으면 헌(!) 노트북을 반납해야 하는 정책이 있는데 헌 노트북을 폐기 처분 하는 것이 아니라 특정 목적으로 유휴장비로 활용할 수 있는 제도가 있습니다. 비용이 추가적으로 들지 않고 다른 서버를 확보하는 데 복잡한데 반해 매우 간편히 받을 수 있어 프로젝트에서 개발 서버로 사용할 때가 꽤 있는데, 아쉽게도 말 그대로 헌 것이기에 성능이 그다지 좋지는 않습니다. 제 경우에는 대게 성능을 최적화해서 쓰기 위해 GUI없이 서버 운영체제로 설치합니다. 그러나 가상화를 써야하는 시점에 난관에 부딪히게 됩니다.","@type":"BlogPosting","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/ko/assets/main.css"><link type="application/atom+xml" rel="alternate" href="https://blog.itanoss.kr/ko/feed.xml" title="Joonhyeok Im" />
+    <!-- Google Analytics -->
+    <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-72261394-1', 'auto');
+	ga('send', 'pageview', { 'page': location.pathname + location.search + location.hash});
+	ga('set', 'anonymizeIp', false);
+    </script>
+    <!-- End Google Analytics -->
+    </head>
+<body><header class="site-header" role="banner">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/ko/">Joonhyeok Im</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">Command line으로 VirtualBox VM 생성하기</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2015-12-14T09:03:02+09:00" itemprop="datePublished">Dec 14, 2015
+      </time></p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <p>사내에서 신규 노트북을 지급받으면 헌(!) 노트북을 반납해야 하는 정책이 있는데 헌 노트북을 폐기 처분 하는 것이 아니라 특정 목적으로 유휴장비로 활용할 수 있는 제도가 있습니다. 비용이 추가적으로 들지 않고 다른 서버를 확보하는 데 복잡한데 반해 매우 간편히 받을 수 있어 프로젝트에서 개발 서버로 사용할 때가 꽤 있는데, 아쉽게도 말 그대로 헌 것이기에 성능이 그다지 좋지는 않습니다. 제 경우에는 대게 성능을 최적화해서 쓰기 위해 GUI없이 서버 운영체제로 설치합니다. 그러나 가상화를 써야하는 시점에 난관에 부딪히게 됩니다.</p>
+
+<blockquote>
+  <p>커맨드 라인만으로 어떻게 VM을 생성할 수 있을까?</p>
+</blockquote>
+
+<p>이런 <del>열악한</del> 환경 외에서도 클라우드 가상 서버 등에서도 VM을 운영하고 싶을 때 활용할 수 있으리라 생각됩니다.</p>
+
+<h1 id="virtualbox-설치">VirtualBox 설치</h1>
+
+<p><a href="https://www.virtualbox.org/wiki/Linux_Downloads">VirtualBox 공식 홈페이지</a>에서 정말 친절하게 잘 설명해주고 있으니 버전별로 무리없이 설치할 수 있으리라 생각됩니다.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">sudo </span>sh <span class="nt">-c</span> <span class="s1">'echo "deb http://download.virtualbox.org/virtualbox/debian vivid contrib" &gt;&gt; /etc/apt/sources.list.d/virtualbox.list'</span>
+wget <span class="nt">-q</span> https://www.virtualbox.org/download/oracle_vbox.asc <span class="nt">-O-</span> | <span class="nb">sudo </span>apt-key add -
+<span class="nb">sudo </span>apt-get update
+<span class="nb">sudo </span>apt-get <span class="nb">install </span>virtualbox-5.0
+</code></pre></div></div>
+
+<h2 id="extension-pack-설치">Extension Pack 설치</h2>
+
+<p>Guest OS의 성능 향상, 클립보드, 공유 폴더 등의 확장 기능을 사용하기 위해 설치가 필수입니다.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>wget http://download.virtualbox.org/virtualbox/5.0.10/Oracle_VM_VirtualBox_Extension_Pack-5.0.10-104061.vbox-extpack
+<span class="nb">sudo </span>VBoxManage extpack <span class="nb">install</span> ./Oracle_VM_VirtualBox_Extension_Pack-5.0.10-104061.vbox-extpack
+VBoxManage list extpacks
+</code></pre></div></div>
+
+<p>예제 커맨드의 URL 대신 <a href="https://www.virtualbox.org/wiki/Downloads">설치 페이지</a>에서 최신 버전으로 다운로드 받아 같은 방법으로 하면 되겠습니다.</p>
+
+<h1 id="vm-생성">VM 생성</h1>
+
+<p>이제 준비는 끝났습니다. GUI에서 VM을 생성했던 기억을 되살려서 커맨드라인도 동일하게 설정하면 되겠습니다. 우선 VM 이름을 <code class="highlighter-rouge">VPN환경 테스트</code>라고 하겠습니다.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>VBoxManage createvm <span class="nt">--name</span> <span class="s2">"VPN환경 테스트"</span> <span class="nt">--register</span>
+</code></pre></div></div>
+
+<p>옵션을 더 넣어서 생성할 때 한번에 잘 설정할 수도 있겠지만 아래와 같이 옵션 수정도 가능합니다.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>VBoxManage modifyvm <span class="s2">"VPN환경 테스트"</span> <span class="nt">--memory</span> 2048 <span class="nt">--acpi</span> on <span class="nt">--boot1</span> dvd <span class="nt">--ostype</span> Windows7_64 <span class="nt">--ioapic</span> on
+</code></pre></div></div>
+
+<p>지원되는 OS 타입은 <code class="highlighter-rouge">VBoxManage list ostypes</code> 명령어로 확인해볼 수 있습니다.</p>
+
+<h2 id="스토리지-설정">스토리지 설정</h2>
+
+<p>SATA로 통용되는 스토리지는 메인 하드디스크와 DVD가 대중적인 광학 디스크로 구성하는 것이 일반적입니다. 쉽게 이야기하자면, 윈도우 CD와 윈도우를 설치할 C드라이브가 그것입니다. 홈디렉토리 아래 <code class="highlighter-rouge">Downloads</code> 디렉토리에 윈도우 설치DVD가 있다고 가정하고 현재 디렉토리에 가상 스토리지 파일을 생성한다고 하겠습니다.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>VBoxManage createhd <span class="nt">--filename</span> <span class="s2">"win7.vdi"</span> <span class="nt">--size</span> 30720
+VBoxManage storagectl <span class="s2">"VPN환경 테스트"</span> <span class="nt">--name</span> <span class="s2">"SATA Controller"</span> <span class="nt">--add</span> sata <span class="nt">--portcount</span> 4
+VBoxManage storageattach <span class="s2">"VPN환경 테스트"</span> <span class="nt">--storagectl</span> <span class="s2">"SATA Controller"</span> <span class="nt">--port</span> 0 <span class="nt">--type</span> hdd <span class="nt">--medium</span> win7.vdi
+VBoxManage storageattach <span class="s2">"VPN환경 테스트7"</span> <span class="nt">--storagectl</span> <span class="s2">"SATA Controller"</span> <span class="nt">--port</span> 1 <span class="nt">--type</span> dvddrive <span class="nt">--medium</span> YOUR_WINDOWS7_IMAGE.iso
+</code></pre></div></div>
+
+<h2 id="네트워크-설정">네트워크 설정</h2>
+
+<p>가상화에서 주로 쓰이는 네트워크 설정 방식은 NAT와 Bridge방식이 있습니다. NAT는 <a href="https://ko.wikipedia.org/wiki/%EB%84%A4%ED%8A%B8%EC%9B%8C%ED%81%AC_%EC%A3%BC%EC%86%8C_%EB%B3%80%ED%99%98">위키피디아</a>에서는 장황히 설명되어 있지만 쉽게 설명하자면 Host OS가 공유기 역할을 하게 된다고 보면 됩니다. Host OS가 가진 IP대역과 다른 사설망을 Guest OS에 IP 로 할당이 됩니다. 한편 Bridge는 HostOS와 동일한 IP대역으로 할당받습니다. 장비로 랜선이 하나로 들어왔지만 IP는 두 개 이상 할당 받는 모습이 됩니다.
+<img src="/ko/assets/images/2015-12-14/nat-vs-bridged.png" alt="NAT vs Bridged" /></p>
+
+<p>NAT 네트워크를 생성한 후 위 VM에서 이 NAT 망을 사용하는 것으로 설정합니다.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">sudo </span>VBoxManage natnetwork add <span class="nt">-t</span> nat-int-network <span class="nt">-n</span> <span class="s2">"10.20.30.0/24"</span> <span class="nt">-e</span> <span class="nt">-h</span> on
+<span class="nb">sudo </span>VBoxManage natnetwork start <span class="nt">-t</span> nat-int-network
+VBoxManage modifyvm <span class="s2">"VPN환경 테스트"</span> <span class="nt">--nic1</span> nat
+</code></pre></div></div>
+
+<h3 id="브릿지-네트워크">브릿지 네트워크</h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>VBoxManage modifyvm <span class="s2">"VPN환경 테스트"</span> <span class="nt">--nic1</span> bridged <span class="nt">--bridgeadapter1</span> eth0 <span class="nt">--nictype1</span> 82540EM
+</code></pre></div></div>
+
+<p>Host OS에서 어댑터 ID를 확인하여 기입합니다. 또한 VirtualBox 5.0 기준 다음과 같은 NIC Type 들이 있습니다.</p>
+
+<ul>
+  <li>AMD PCNet PCI II : <code class="highlighter-rouge">Am79C970A</code></li>
+  <li>AMD PCNet FAST III : <code class="highlighter-rouge">Am79C973</code> (기본값)</li>
+  <li>Intel PRO/1000 MT Desktop : <code class="highlighter-rouge">82540EM</code></li>
+  <li>Intel PRO/1000 T Server : <code class="highlighter-rouge">82543GC</code></li>
+  <li>Intel PRO/1000 MT Server <code class="highlighter-rouge">82545EM</code></li>
+</ul>
+
+<p><a href="https://www.virtualbox.org/manual/ch06.html#nichardware">공식 매뉴얼</a>에서는 기본값 항목이 거의 모든 운영체제에서 잘 인식이 된다고 하였지만, Windows 7 2014년 기준 업데이트로 설치해보니 드라이버 인식이 바로 되지 않았습니다. 인텔 계열로 적용하고 다시 시작해보니 Plug &amp; Play가 작동하면서 드라이버 설치가 제대로 되었습니다.</p>
+
+<h2 id="vrdp-설정">VRDP 설정</h2>
+
+<p>GUI환경에서는 바로 콘솔창이 열리지만 CLI환경에서는 VirtualBox에서 제공하는 RDP(원격 데스크탑) 기능을 사용해서 접근이 가능합니다. (물론 GUI환경에서도 설정 가능합니다.)</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>VBoxManage modifyvm <span class="s2">"VPN환경 테스트"</span> <span class="nt">--vrde</span> on 
+VBoxManage modifyvm <span class="s2">"VPN환경 테스트"</span> <span class="nt">--vrdeport</span> 4000
+</code></pre></div></div>
+
+<h1 id="vm-시작">VM 시작</h1>
+
+<p>이제 모든 준비는 끝났습니다. VM을 시작하고 위에서 지정한 포트로 익숙한 RDP 툴을 사용하여 Guest OS를 설치하면 됩니다.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>VBoxHeadless <span class="nt">--startvm</span> <span class="s2">"VPN환경 테스트"</span>
+</code></pre></div></div>
+
+<h2 id="guest-addition-설치">Guest Addition 설치</h2>
+
+<p>설치를 완료하면 Guest Addition을 반드시 설치하는 것이 좋습니다. GUI에서는 메뉴에서 Install Guest Addition 항목을 찾아 클릭하는 것으로 CD를 마운트해서 Autorun이 실행되어 자동으로 설치됩니다. CLI에서도 같은 방법으로 마운트만 해주고 설치하면 동일하게 설치가 가능합니다.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>VBoxManage storageattach <span class="s2">"VPN환경 테스트"</span> <span class="nt">--storagectl</span> <span class="s2">"SATA Controller"</span> <span class="nt">--port</span> 1 <span class="nt">--type</span> dvddrive <span class="nt">--medium</span> /usr/share/virtualbox/VBoxGuestAdditions.iso
+</code></pre></div></div>
+
+<div id="disqus_thread"></div>
+<script>
+/**
+*  RECOMMENDED CONFIGURATION VARIABLES: EDIT AND UNCOMMENT THE SECTION BELOW TO INSERT DYNAMIC VALUES FROM YOUR PLATFORM OR CMS.
+*  LEARN WHY DEFINING THESE VARIABLES IS IMPORTANT: https://disqus.com/admin/universalcode/#configuration-variables*/
+// var siteUrl = "https://blog.itanoss.kr";
+var siteUrl = "https:\/\/blog.itanoss.kr";
+var disqus_config = function () {
+this.page.url = siteUrl + "/command-line%ec%9c%bc%eb%a1%9c-virtualbox-vm-%ec%83%9d%ec%84%b1%ed%95%98%ea%b8%b0/";
+//this.page.identifier = PAGE_IDENTIFIER; // delegate page.url
+};
+(function() { // DON'T EDIT BELOW THIS LINE
+var d = document, s = d.createElement('script');
+s.src = 'https://itanoss-blog.disqus.com/embed.js';
+s.setAttribute('data-timestamp', +new Date());
+(d.head || d.body).appendChild(s);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+  </div><a class="u-url" href="/ko/command-line%EC%9C%BC%EB%A1%9C-virtualbox-vm-%EC%83%9D%EC%84%B1%ED%95%98%EA%B8%B0/" hidden></a>
+</article>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/ko/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Joonhyeok Im</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">Joonhyeok Im</li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/itanoss"><svg class="svg-icon"><use xlink:href="/ko/assets/minima-social-icons.svg#github"></use></svg> <span class="username">itanoss</span></a></li><li><a href="https://www.twitter.com/itanoss"><svg class="svg-icon"><use xlink:href="/ko/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">itanoss</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p>Software development blog written by Joonhyeok Im</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>

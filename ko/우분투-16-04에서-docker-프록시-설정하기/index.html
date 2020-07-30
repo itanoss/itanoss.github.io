@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ko"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.6.1 -->
+<title>우분투 16.04에서 docker 프록시 설정하기 | Joonhyeok Im</title>
+<meta name="generator" content="Jekyll v3.8.7" />
+<meta property="og:title" content="우분투 16.04에서 docker 프록시 설정하기" />
+<meta property="og:locale" content="ko" />
+<meta name="description" content="많은 사내 환경에서 프록시 정책을 가지고 있기 때문에 프로그램마다 프록시 설정하는 방법을 documentation에 가이드합니다. 리눅스환경에서는 http_proxy와 같은 환경 변수를 읽어 동작하게끔 나름대로 표준화되어 있긴 합니다만 조금씩 상이하거나 docker와 같이 가상환경이 있거나 실행하는 user 자체가 다르거나 등등 여러 변수 요소 때문에 가이드 대로 proxy 설정을 하는 것이 가장 효과적입니다." />
+<meta property="og:description" content="많은 사내 환경에서 프록시 정책을 가지고 있기 때문에 프로그램마다 프록시 설정하는 방법을 documentation에 가이드합니다. 리눅스환경에서는 http_proxy와 같은 환경 변수를 읽어 동작하게끔 나름대로 표준화되어 있긴 합니다만 조금씩 상이하거나 docker와 같이 가상환경이 있거나 실행하는 user 자체가 다르거나 등등 여러 변수 요소 때문에 가이드 대로 proxy 설정을 하는 것이 가장 효과적입니다." />
+<link rel="canonical" href="https://blog.itanoss.kr/ko/%EC%9A%B0%EB%B6%84%ED%88%AC-16-04%EC%97%90%EC%84%9C-docker-%ED%94%84%EB%A1%9D%EC%8B%9C-%EC%84%A4%EC%A0%95%ED%95%98%EA%B8%B0/" />
+<meta property="og:url" content="https://blog.itanoss.kr/ko/%EC%9A%B0%EB%B6%84%ED%88%AC-16-04%EC%97%90%EC%84%9C-docker-%ED%94%84%EB%A1%9D%EC%8B%9C-%EC%84%A4%EC%A0%95%ED%95%98%EA%B8%B0/" />
+<meta property="og:site_name" content="Joonhyeok Im" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2016-06-08T16:07:08+09:00" />
+<script type="application/ld+json">
+{"headline":"우분투 16.04에서 docker 프록시 설정하기","dateModified":"2016-06-08T16:07:08+09:00","datePublished":"2016-06-08T16:07:08+09:00","mainEntityOfPage":{"@type":"WebPage","@id":"https://blog.itanoss.kr/ko/%EC%9A%B0%EB%B6%84%ED%88%AC-16-04%EC%97%90%EC%84%9C-docker-%ED%94%84%EB%A1%9D%EC%8B%9C-%EC%84%A4%EC%A0%95%ED%95%98%EA%B8%B0/"},"url":"https://blog.itanoss.kr/ko/%EC%9A%B0%EB%B6%84%ED%88%AC-16-04%EC%97%90%EC%84%9C-docker-%ED%94%84%EB%A1%9D%EC%8B%9C-%EC%84%A4%EC%A0%95%ED%95%98%EA%B8%B0/","description":"많은 사내 환경에서 프록시 정책을 가지고 있기 때문에 프로그램마다 프록시 설정하는 방법을 documentation에 가이드합니다. 리눅스환경에서는 http_proxy와 같은 환경 변수를 읽어 동작하게끔 나름대로 표준화되어 있긴 합니다만 조금씩 상이하거나 docker와 같이 가상환경이 있거나 실행하는 user 자체가 다르거나 등등 여러 변수 요소 때문에 가이드 대로 proxy 설정을 하는 것이 가장 효과적입니다.","@type":"BlogPosting","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/ko/assets/main.css"><link type="application/atom+xml" rel="alternate" href="https://blog.itanoss.kr/ko/feed.xml" title="Joonhyeok Im" />
+    <!-- Google Analytics -->
+    <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-72261394-1', 'auto');
+	ga('send', 'pageview', { 'page': location.pathname + location.search + location.hash});
+	ga('set', 'anonymizeIp', false);
+    </script>
+    <!-- End Google Analytics -->
+    </head>
+<body><header class="site-header" role="banner">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/ko/">Joonhyeok Im</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">우분투 16.04에서 docker 프록시 설정하기</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2016-06-08T16:07:08+09:00" itemprop="datePublished">Jun 8, 2016
+      </time></p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <p>많은 사내 환경에서 프록시 정책을 가지고 있기 때문에 프로그램마다 프록시 설정하는 방법을 documentation에 가이드합니다. 리눅스환경에서는 <code class="highlighter-rouge">http_proxy</code>와 같은 환경 변수를 읽어 동작하게끔 나름대로 표준화되어 있긴 합니다만 조금씩 상이하거나 docker와 같이 가상환경이 있거나 실행하는 user 자체가 다르거나 등등 여러 변수 요소 때문에 가이드 대로 proxy 설정을 하는 것이 가장 효과적입니다.</p>
+
+<h2 id="docker-버전-1706-이하">Docker 버전 17.06 이하</h2>
+
+<p>우분투 16.04 (xenial)에서는 다음과 같이 하위 우분투 버전에서 하던 방법대로 진행하면 작동하지를 않습니다.</p>
+
+<blockquote>
+  <p><code class="highlighter-rouge">/etc/default/docker</code> 파일에 <code class="highlighter-rouge">http_proxy</code> 등의 환경 변수 설정</p>
+
+  <p>예:</p>
+
+  <p><code class="highlighter-rouge">export HTTP_PROXY="http://proxy.your.corp/"</code></p>
+</blockquote>
+
+<p>최근 리눅스 진영에서는 데몬을 관리하는데 있어 systemd를 사용하는 추세로 움직이고 있습니다. 따라서 최신 리눅스 버전에서도 이에 맞게 설정해야 합니다.</p>
+
+<ol>
+  <li>다음과 같이 systemd drop-in directory를 만듭니다.
+    <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  <span class="nb">sudo mkdir</span> /etc/systemd/system/docker.service.d
+</code></pre></div>    </div>
+  </li>
+  <li>프록시 설정만 override하기 위해 <code class="highlighter-rouge">/etc/systemd/system/docker.service.d/http-proxy.conf</code> 파일을 작성합니다. <em>(주: 파일명은 달라도 <code class="highlighter-rouge">.conf</code>와 같은 확장자를 사용해야만 합니다.)</em>
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  [Service]
+  Environment="HTTP_PROXY=http://proxy.your.corp/" "HTTPS_PROXY=https://proxy.your.corp/" "NO_PROXY=localhost,127.0.0.1,docker-registry.your.corp"
+</code></pre></div>    </div>
+  </li>
+  <li>설정을 적용합니다.
+    <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  <span class="nb">sudo </span>systemctl daemon-reload
+</code></pre></div>    </div>
+  </li>
+  <li>docker를 재시작합니다.
+    <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  <span class="nb">sudo </span>systemctl restart docker
+</code></pre></div>    </div>
+  </li>
+</ol>
+
+<h2 id="docker-버전-1707-이상">Docker 버전 17.07 이상</h2>
+
+<p>버전 17.07부터는 이러한 많은 프록시 수요로 인해 user-level configuration으로 도출되었습니다.</p>
+
+<p><code class="highlighter-rouge">~/.docker/config.json</code> 파일을 작성/수정합니다.</p>
+
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span>
+    <span class="dl">"</span><span class="s2">proxies</span><span class="dl">"</span><span class="p">:</span> <span class="p">{</span>
+        <span class="dl">"</span><span class="s2">default</span><span class="dl">"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="dl">"</span><span class="s2">httpProxy</span><span class="dl">"</span><span class="p">:</span> <span class="dl">"</span><span class="s2">http://proxy.your.corp</span><span class="dl">"</span><span class="p">,</span>
+            <span class="dl">"</span><span class="s2">httpsProxy</span><span class="dl">"</span><span class="p">:</span> <span class="dl">"</span><span class="s2">https://proxy.your.corp</span><span class="dl">"</span><span class="p">,</span>
+            <span class="dl">"</span><span class="s2">noProxy</span><span class="dl">"</span><span class="p">:</span> <span class="dl">"</span><span class="s2">localhost,127.0.0.1,*.your.corp</span><span class="dl">"</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<hr />
+
+<h4 id="reference">Reference</h4>
+
+<ul>
+  <li><a href="https://docs.docker.com/engine/admin/systemd">docker systemd 설정 공식 가이드</a></li>
+  <li><a href="https://docs.docker.com/network/proxy">docker 프록시 설정 공식 가이드</a></li>
+</ul>
+
+<div id="disqus_thread"></div>
+<script>
+/**
+*  RECOMMENDED CONFIGURATION VARIABLES: EDIT AND UNCOMMENT THE SECTION BELOW TO INSERT DYNAMIC VALUES FROM YOUR PLATFORM OR CMS.
+*  LEARN WHY DEFINING THESE VARIABLES IS IMPORTANT: https://disqus.com/admin/universalcode/#configuration-variables*/
+// var siteUrl = "https://blog.itanoss.kr";
+var siteUrl = "https:\/\/blog.itanoss.kr";
+var disqus_config = function () {
+this.page.url = siteUrl + "/%ec%9a%b0%eb%b6%84%ed%88%ac-16-04%ec%97%90%ec%84%9c-docker-%ed%94%84%eb%a1%9d%ec%8b%9c-%ec%84%a4%ec%a0%95%ed%95%98%ea%b8%b0/";
+//this.page.identifier = PAGE_IDENTIFIER; // delegate page.url
+};
+(function() { // DON'T EDIT BELOW THIS LINE
+var d = document, s = d.createElement('script');
+s.src = 'https://itanoss-blog.disqus.com/embed.js';
+s.setAttribute('data-timestamp', +new Date());
+(d.head || d.body).appendChild(s);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+  </div><a class="u-url" href="/ko/%EC%9A%B0%EB%B6%84%ED%88%AC-16-04%EC%97%90%EC%84%9C-docker-%ED%94%84%EB%A1%9D%EC%8B%9C-%EC%84%A4%EC%A0%95%ED%95%98%EA%B8%B0/" hidden></a>
+</article>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/ko/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Joonhyeok Im</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">Joonhyeok Im</li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/itanoss"><svg class="svg-icon"><use xlink:href="/ko/assets/minima-social-icons.svg#github"></use></svg> <span class="username">itanoss</span></a></li><li><a href="https://www.twitter.com/itanoss"><svg class="svg-icon"><use xlink:href="/ko/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">itanoss</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p>Software development blog written by Joonhyeok Im</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>

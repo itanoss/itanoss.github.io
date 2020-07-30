@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ko"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.6.1 -->
+<title>Mocking in python unittest | Joonhyeok Im</title>
+<meta name="generator" content="Jekyll v3.8.7" />
+<meta property="og:title" content="Mocking in python unittest" />
+<meta property="og:locale" content="ko" />
+<meta name="description" content="자바에서 mockito를 이용해서 단위 테스트에 있어 복잡한 참조 관계를 잘 떨어뜨려서 우리가 원하는 목적에 맞는 테스트를 작성할 수 있었습니다. 예를 들면 아래 같은 녀석이 그렇죠." />
+<meta property="og:description" content="자바에서 mockito를 이용해서 단위 테스트에 있어 복잡한 참조 관계를 잘 떨어뜨려서 우리가 원하는 목적에 맞는 테스트를 작성할 수 있었습니다. 예를 들면 아래 같은 녀석이 그렇죠." />
+<link rel="canonical" href="https://blog.itanoss.kr/ko/mocking-in-python-unittest/" />
+<meta property="og:url" content="https://blog.itanoss.kr/ko/mocking-in-python-unittest/" />
+<meta property="og:site_name" content="Joonhyeok Im" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2017-06-28T16:50:01+09:00" />
+<script type="application/ld+json">
+{"headline":"Mocking in python unittest","dateModified":"2017-06-28T16:50:01+09:00","datePublished":"2017-06-28T16:50:01+09:00","mainEntityOfPage":{"@type":"WebPage","@id":"https://blog.itanoss.kr/ko/mocking-in-python-unittest/"},"url":"https://blog.itanoss.kr/ko/mocking-in-python-unittest/","description":"자바에서 mockito를 이용해서 단위 테스트에 있어 복잡한 참조 관계를 잘 떨어뜨려서 우리가 원하는 목적에 맞는 테스트를 작성할 수 있었습니다. 예를 들면 아래 같은 녀석이 그렇죠.","@type":"BlogPosting","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/ko/assets/main.css"><link type="application/atom+xml" rel="alternate" href="https://blog.itanoss.kr/ko/feed.xml" title="Joonhyeok Im" />
+    <!-- Google Analytics -->
+    <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-72261394-1', 'auto');
+	ga('send', 'pageview', { 'page': location.pathname + location.search + location.hash});
+	ga('set', 'anonymizeIp', false);
+    </script>
+    <!-- End Google Analytics -->
+    </head>
+<body><header class="site-header" role="banner">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/ko/">Joonhyeok Im</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">Mocking in python unittest</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2017-06-28T16:50:01+09:00" itemprop="datePublished">Jun 28, 2017
+      </time></p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <p>자바에서 <a href="http://site.mockito.org/">mockito</a>를 이용해서 단위 테스트에 있어 복잡한 참조 관계를 잘 떨어뜨려서 우리가 원하는 목적에 맞는 테스트를 작성할 수 있었습니다. 예를 들면 아래 같은 녀석이 그렇죠.</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">@RunWith</span><span class="o">(</span><span class="nc">MockitoJunitRunner</span><span class="o">.</span><span class="na">class</span><span class="o">)</span>
+<span class="kd">public</span> <span class="kd">class</span> <span class="nc">DeveloperTest</span> <span class="o">{</span>
+    <span class="nd">@Mock</span>
+    <span class="nc">ProductManager</span> <span class="n">mockPM</span><span class="o">;</span>
+
+    <span class="nd">@Mock</span>
+    <span class="nc">Designer</span> <span class="n">mockDesigner</span><span class="o">;</span>
+
+    <span class="nc">Developer</span> <span class="n">subject</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">Developer</span><span class="o">();</span>
+
+    <span class="nd">@Before</span>
+    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">setUp</span><span class="o">()</span> <span class="kd">throws</span> <span class="nc">Exception</span> <span class="o">{</span>
+        <span class="n">subject</span><span class="o">.</span><span class="na">workWith</span><span class="o">(</span><span class="n">mockPM</span><span class="o">);</span>
+        <span class="n">subject</span><span class="o">.</span><span class="na">workWith</span><span class="o">(</span><span class="n">mockDesigner</span><span class="o">);</span>
+    <span class="o">}</span>
+
+    <span class="nd">@Test</span>
+    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">testWriteWebPage</span><span class="o">()</span> <span class="kd">throws</span> <span class="nc">Exception</span> <span class="o">{</span>
+        <span class="n">when</span><span class="o">(</span><span class="n">mockPM</span><span class="o">.</span><span class="na">writeAcceptanceCriteria</span><span class="o">(</span><span class="n">anyString</span><span class="o">())).</span><span class="na">thenReturn</span><span class="o">(</span><span class="s">"Nice AC"</span><span class="o">);</span>
+        <span class="n">when</span><span class="o">(</span><span class="n">mockDesigner</span><span class="o">.</span><span class="na">drawPage</span><span class="o">(</span><span class="n">anyString</span><span class="o">())).</span><span class="na">thenReturn</span><span class="o">(</span><span class="n">mock</span><span class="o">(</span><span class="nc">Drawing</span><span class="o">.</span><span class="na">class</span><span class="o">));</span>
+        
+        <span class="nc">String</span> <span class="n">page</span> <span class="o">=</span> <span class="n">subject</span><span class="o">.</span><span class="na">writeWebPage</span><span class="o">(</span><span class="s">"story-1"</span><span class="o">);</span>
+
+        <span class="n">assertThat</span><span class="o">(</span><span class="n">page</span><span class="o">)</span>
+            <span class="o">.</span><span class="na">startWith</span><span class="o">(</span><span class="s">"&lt;!doctype html&gt;"</span><span class="o">)</span>
+            <span class="o">.</span><span class="na">endWith</span><span class="o">(</span><span class="s">"&lt;/html&gt;"</span><span class="o">);</span>
+        <span class="n">verify</span><span class="o">(</span><span class="n">mockPM</span><span class="o">).</span><span class="na">writeAcceptanceCriteria</span><span class="o">(</span><span class="n">eq</span><span class="o">(</span><span class="s">"story-1"</span><span class="o">));</span>
+        <span class="n">verify</span><span class="o">(</span><span class="n">mockDesigner</span><span class="o">).</span><span class="na">drawPage</span><span class="o">(</span><span class="n">eq</span><span class="o">(</span><span class="s">"story-1"</span><span class="o">));</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>실제 우리가 일하는 방식과 차이는 있습니다만, 일단 개발자가 일하기 위해선 주변 사람들이 도와준다는 가정입니다. <code class="highlighter-rouge">Developer</code> 클래스는 <code class="highlighter-rouge">ProductManager</code> 클래스와 <code class="highlighter-rouge">Designer</code> 클래스에 의존하는데 <code class="highlighter-rouge">Developer</code> 클래스의 <code class="highlighter-rouge">writeWebPage()</code> 테스트할 때 의존 관계에 있는 클래스까지 참조하기 때문에 테스트가 실패하면 어디서 발생하는 지 모르는 문제점이 발생하게 됩니다.(부수 효과) 이를 위해서는 관심을 갖는(대상) 범위 외에 나머지를 제외시켜야할텐데 이 때 mocking을 쓰면 매우 적절하죠. 그럼 파이썬에서는 어떻게 할 수 있을까요?</p>
+
+<h1 id="unittest-fundamentals"><code class="highlighter-rouge">unittest</code> fundamentals</h1>
+
+<p>파이썬에 <a href="https://wiki.python.org/moin/PythonTestingToolsTaxonomy">다양한 단위 테스트 프레임워크</a>가 있지만 가장 기본인 <a href="https://docs.python.org/3/library/unittest.html">unittest</a>를 기준으로 하면 다음과 같이 간단하게 작성할 수 있습니다.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">unittest</span> <span class="kn">import</span> <span class="n">TestCase</span>
+
+<span class="kn">import</span> <span class="nn">developer</span> <span class="k">as</span> <span class="n">subject</span>
+
+<span class="k">class</span> <span class="nc">DeveloperTest</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">test_write_web_page</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">page</span> <span class="o">=</span> <span class="n">subject</span><span class="p">.</span><span class="n">write_web_page</span><span class="p">(</span><span class="s">'story-1'</span><span class="p">)</span>
+        
+        <span class="bp">self</span><span class="p">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">page</span><span class="p">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">'&lt;!doctype html&gt;'</span><span class="p">))</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">page</span><span class="p">.</span><span class="n">endswith</span><span class="p">(</span><span class="s">'&lt;/html&gt;'</span><span class="p">))</span>
+</code></pre></div></div>
+
+<p>TestCase 내에 assertTrue 외에도 다양한 함수가 있으니 <a href="https://docs.python.org/3/library/unittest.html#unittest.TestCase">여기</a>를 참고해서 작성하면 됩니다.</p>
+
+<h1 id="single-mock">single mock</h1>
+
+<p>mock object를 한 개만 둘 때입니다.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">unittest</span> <span class="kn">import</span> <span class="n">mock</span><span class="p">,</span> <span class="n">TestCase</span>
+
+<span class="k">class</span> <span class="nc">DeveloperTest</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="o">@</span><span class="n">mock</span><span class="p">.</span><span class="n">patch</span><span class="p">(</span><span class="s">'ProductManager.writeAcceptanceCriteria'</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">test_write_web_page</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mock_ac</span><span class="p">):</span>
+        <span class="n">mock_ac</span><span class="p">.</span><span class="n">return_value</span> <span class="o">=</span> <span class="s">'a sophisticated ac'</span>
+
+        <span class="n">page</span> <span class="o">=</span> <span class="n">subject</span><span class="p">.</span><span class="n">write_web_page</span><span class="p">(</span><span class="s">'story-1'</span><span class="p">)</span>
+        
+        <span class="bp">self</span><span class="p">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">page</span><span class="p">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">'&amp;lt;!doctype html&amp;gt;'</span><span class="p">))</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">page</span><span class="p">.</span><span class="n">endswith</span><span class="p">(</span><span class="s">'&amp;lt;/html&amp;gt;'</span><span class="p">))</span>
+
+        <span class="n">mock_ac</span><span class="p">.</span><span class="n">assert_called_with</span><span class="p">(</span><span class="s">'a sophisticated ac'</span><span class="p">)</span>
+</code></pre></div></div>
+
+<ol>
+  <li>해당 테스트 케이스 함수에서 <code class="highlighter-rouge">@mock.patch</code> 데코레이터를 선언하여 mocking 대상이 되는 함수를 선언하고,</li>
+  <li>테스트 케이스 함수 파라미터를 지정합니다.</li>
+  <li>mocking 함수에 대해 결과값을 <code class="highlighter-rouge">mock_object.return_value = expected</code> 형태로 선언하고,</li>
+  <li>대상 함수를 테스트 한 후 verify하는 시점에 <code class="highlighter-rouge">mock_object.assert_called_with(expected)</code> 형태로 검증합니다.</li>
+</ol>
+
+<h2 id="matcher-쓰기">matcher 쓰기</h2>
+
+<p>자바 진영의 mockito에서 <code class="highlighter-rouge">anyString()</code>나 <code class="highlighter-rouge">any(classType)</code>와 같이 매칭을 지정할 수도 있는데, unittest에도 <code class="highlighter-rouge">unittest.mock.ANY</code>로 사용할 수 있습니다.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># second_param can be anything
+</span><span class="n">mock_object</span><span class="p">.</span><span class="n">assert_called_with</span><span class="p">(</span><span class="s">'first_param'</span><span class="p">,</span> <span class="n">ANY</span><span class="p">,</span> <span class="s">'third_param'</span><span class="p">)</span>
+</code></pre></div></div>
+
+<h1 id="multiple-mocks">multiple mocks</h1>
+
+<p>mocking 대상이 두 개 이상일 때도 큰 차이는 없습니다만, 아래와 같이 <strong>데코레이터로 선언한 순서와 파라미터 순서가 반대</strong>인 것만 주의하면 됩니다.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">unittest</span> <span class="kn">import</span> <span class="n">mock</span><span class="p">,</span> <span class="n">TestCase</span>
+<span class="kn">import</span> <span class="nn">Drawing</span>
+
+<span class="k">class</span> <span class="nc">DeveloperTest</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="o">@</span><span class="n">mock</span><span class="p">.</span><span class="n">patch</span><span class="p">(</span><span class="s">'ProductManager.writeAcceptanceCriteria'</span><span class="p">)</span>
+    <span class="o">@</span><span class="n">mock</span><span class="p">.</span><span class="n">patch</span><span class="p">(</span><span class="s">'Designer.drawPage'</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">test_write_web_page</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mock_draw</span><span class="p">,</span> <span class="n">mock_ac</span><span class="p">):</span>
+        <span class="n">mock_ac</span><span class="p">.</span><span class="n">return_value</span> <span class="o">=</span> <span class="s">'a sophisticated ac'</span>
+        <span class="n">mock_draw</span><span class="p">.</span><span class="n">return_value</span> <span class="o">=</span> <span class="s">'fake drawing'</span>
+
+        <span class="n">page</span> <span class="o">=</span> <span class="n">subject</span><span class="p">.</span><span class="n">write_web_page</span><span class="p">(</span><span class="s">'story-1'</span><span class="p">)</span>
+        
+        <span class="bp">self</span><span class="p">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">page</span><span class="p">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">'&amp;lt;!doctype html&amp;gt;'</span><span class="p">))</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">page</span><span class="p">.</span><span class="n">endswith</span><span class="p">(</span><span class="s">'&amp;lt;/html&amp;gt;'</span><span class="p">))</span>
+
+        <span class="n">mock_ac</span><span class="p">.</span><span class="n">assert_called_with</span><span class="p">(</span><span class="s">'a sophisticated ac'</span><span class="p">)</span>
+        <span class="n">mock_draw</span><span class="p">.</span><span class="n">assert_called_with</span><span class="p">(</span><span class="s">'fake drawing'</span><span class="p">)</span>
+</code></pre></div></div>
+
+<h1 id="multiple-calls">multiple calls</h1>
+
+<p>하나의 함수에 대해 다양한 인자로 여러번 호출할 때에는 <code class="highlighter-rouge">assert_called_with</code> 대신 <a href="https://docs.python.org/3/library/unittest.mock.html#unittest.mock.Mock.assert_has_calls"><code class="highlighter-rouge">assert_has_calls</code></a>를 사용해야 합니다.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">unittest.mock</span> <span class="kn">import</span> <span class="n">call</span>
+
+<span class="n">mock_ac</span><span class="p">.</span><span class="n">assert_has_calls</span><span class="p">([</span><span class="n">call</span><span class="p">(</span><span class="s">'a sophisticated ac'</span><span class="p">),</span> <span class="n">call</span><span class="p">(</span><span class="s">'second ac'</span><span class="p">)])</span>
+</code></pre></div></div>
+
+<h2 id="한계점">한계점</h2>
+
+<ul>
+  <li><code class="highlighter-rouge">assert_has_only_calls</code> 와 같은 함수가 있다면, 해당 함수를 호출하는 인자를 정확하게 한정할 수 있을 것 같은데, 현재는 call count를 세고 <code class="highlighter-rouge">assert_has_calls</code>로 검사하는 식으로 대안을 찾을 수 있습니다.</li>
+</ul>
+
+<hr />
+
+<h4 id="reference">Reference</h4>
+
+<ul>
+  <li><a href="http://www.voidspace.org.uk/python/mock/patch.html?highlight=stack#nesting-patch-decorators">http://www.voidspace.org.uk/python/mock/patch.html?highlight=stack#nesting-patch-decorators</a></li>
+  <li><a href="https://docs.python.org/3/library/unittest.mock.html"><code class="highlighter-rouge">unittest.mock</code> Official Documentation</a></li>
+</ul>
+
+<div id="disqus_thread"></div>
+<script>
+/**
+*  RECOMMENDED CONFIGURATION VARIABLES: EDIT AND UNCOMMENT THE SECTION BELOW TO INSERT DYNAMIC VALUES FROM YOUR PLATFORM OR CMS.
+*  LEARN WHY DEFINING THESE VARIABLES IS IMPORTANT: https://disqus.com/admin/universalcode/#configuration-variables*/
+// var siteUrl = "https://blog.itanoss.kr";
+var siteUrl = "https:\/\/blog.itanoss.kr";
+var disqus_config = function () {
+this.page.url = siteUrl + "/mocking-in-python-unittest/";
+//this.page.identifier = PAGE_IDENTIFIER; // delegate page.url
+};
+(function() { // DON'T EDIT BELOW THIS LINE
+var d = document, s = d.createElement('script');
+s.src = 'https://itanoss-blog.disqus.com/embed.js';
+s.setAttribute('data-timestamp', +new Date());
+(d.head || d.body).appendChild(s);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+  </div><a class="u-url" href="/ko/mocking-in-python-unittest/" hidden></a>
+</article>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/ko/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Joonhyeok Im</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">Joonhyeok Im</li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/itanoss"><svg class="svg-icon"><use xlink:href="/ko/assets/minima-social-icons.svg#github"></use></svg> <span class="username">itanoss</span></a></li><li><a href="https://www.twitter.com/itanoss"><svg class="svg-icon"><use xlink:href="/ko/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">itanoss</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p>Software development blog written by Joonhyeok Im</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>

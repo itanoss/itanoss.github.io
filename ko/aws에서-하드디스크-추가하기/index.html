@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="ko"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.6.1 -->
+<title>AWS에서 하드디스크 추가하기 | Joonhyeok Im</title>
+<meta name="generator" content="Jekyll v3.8.7" />
+<meta property="og:title" content="AWS에서 하드디스크 추가하기" />
+<meta property="og:locale" content="ko" />
+<meta name="description" content="제 블로그는 AWS 기반인데 box안에 nginx, php-fpm 등을 설치하여 워드프레스를 설치하여 운영하고 있습니다. 그런데 데이터 영역과 실행 영역을 나누어, 데이터를 보다 안전하게 보존하고, 문제가 있을 시에 빠르게 복구하고 싶어졌습니다. (인실직고를 하자면 기술적인 호기심으로 native 설치를 걷어내고 docker를 설치해보고자 했는데, 설치 중에 부팅이 안되는 문제로 인프라 아키텍쳐를 변경하기로 마음 먹었습니다.)" />
+<meta property="og:description" content="제 블로그는 AWS 기반인데 box안에 nginx, php-fpm 등을 설치하여 워드프레스를 설치하여 운영하고 있습니다. 그런데 데이터 영역과 실행 영역을 나누어, 데이터를 보다 안전하게 보존하고, 문제가 있을 시에 빠르게 복구하고 싶어졌습니다. (인실직고를 하자면 기술적인 호기심으로 native 설치를 걷어내고 docker를 설치해보고자 했는데, 설치 중에 부팅이 안되는 문제로 인프라 아키텍쳐를 변경하기로 마음 먹었습니다.)" />
+<link rel="canonical" href="https://blog.itanoss.kr/ko/aws%EC%97%90%EC%84%9C-%ED%95%98%EB%93%9C%EB%94%94%EC%8A%A4%ED%81%AC-%EC%B6%94%EA%B0%80%ED%95%98%EA%B8%B0/" />
+<meta property="og:url" content="https://blog.itanoss.kr/ko/aws%EC%97%90%EC%84%9C-%ED%95%98%EB%93%9C%EB%94%94%EC%8A%A4%ED%81%AC-%EC%B6%94%EA%B0%80%ED%95%98%EA%B8%B0/" />
+<meta property="og:site_name" content="Joonhyeok Im" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2016-01-11T20:31:48+09:00" />
+<script type="application/ld+json">
+{"headline":"AWS에서 하드디스크 추가하기","dateModified":"2016-01-11T20:31:48+09:00","datePublished":"2016-01-11T20:31:48+09:00","mainEntityOfPage":{"@type":"WebPage","@id":"https://blog.itanoss.kr/ko/aws%EC%97%90%EC%84%9C-%ED%95%98%EB%93%9C%EB%94%94%EC%8A%A4%ED%81%AC-%EC%B6%94%EA%B0%80%ED%95%98%EA%B8%B0/"},"url":"https://blog.itanoss.kr/ko/aws%EC%97%90%EC%84%9C-%ED%95%98%EB%93%9C%EB%94%94%EC%8A%A4%ED%81%AC-%EC%B6%94%EA%B0%80%ED%95%98%EA%B8%B0/","description":"제 블로그는 AWS 기반인데 box안에 nginx, php-fpm 등을 설치하여 워드프레스를 설치하여 운영하고 있습니다. 그런데 데이터 영역과 실행 영역을 나누어, 데이터를 보다 안전하게 보존하고, 문제가 있을 시에 빠르게 복구하고 싶어졌습니다. (인실직고를 하자면 기술적인 호기심으로 native 설치를 걷어내고 docker를 설치해보고자 했는데, 설치 중에 부팅이 안되는 문제로 인프라 아키텍쳐를 변경하기로 마음 먹었습니다.)","@type":"BlogPosting","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/ko/assets/main.css"><link type="application/atom+xml" rel="alternate" href="https://blog.itanoss.kr/ko/feed.xml" title="Joonhyeok Im" />
+    <!-- Google Analytics -->
+    <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-72261394-1', 'auto');
+	ga('send', 'pageview', { 'page': location.pathname + location.search + location.hash});
+	ga('set', 'anonymizeIp', false);
+    </script>
+    <!-- End Google Analytics -->
+    </head>
+<body><header class="site-header" role="banner">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/ko/">Joonhyeok Im</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">AWS에서 하드디스크 추가하기</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2016-01-11T20:31:48+09:00" itemprop="datePublished">Jan 11, 2016
+      </time></p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <p>제 블로그는 AWS 기반인데 box안에 nginx, php-fpm 등을 설치하여 워드프레스를 설치하여 운영하고 있습니다. 그런데 데이터 영역과 실행 영역을 나누어, 데이터를 보다 안전하게 보존하고, 문제가 있을 시에 빠르게 복구하고 싶어졌습니다. <em>(인실직고를 하자면 기술적인 호기심으로 native 설치를 걷어내고 docker를 설치해보고자 했는데, 설치 중에 부팅이 안되는 문제로 인프라 아키텍쳐를 변경하기로 마음 먹었습니다.)</em></p>
+
+<h1 id="하드웨어-설정">하드웨어 설정</h1>
+
+<h2 id="ebs-생성">EBS 생성</h2>
+
+<p>AWS EC2 콘솔에 들어가면 좌측에 Elastic Block Store &gt; Volumes 항목이 있습니다. 들어가면 현재 운영중인 볼륨이 있습니다. Create Volume을 클릭하여 새로 만들어봅니다.</p>
+
+<p><img src="/ko/assets/images/2016-01-11/create-volume.png" alt="Create Volume in AWS EC2 console" /></p>
+
+<p>참고로 SSD보다 Magnetic이 비용이 저렴합니다. 속도에 대한 요건에 맞추어 선택하면 되겠습니다. 저는 I/O가 많지 않고 실행 모듈에 비해 데이터 접근 비율이 적다는 판단하에 Magnetic을 선택하였습니다.</p>
+
+<h2 id="ebs-장착">EBS 장착</h2>
+
+<p>생성 후에 해당 볼륨에 오른쪽 버튼을 클릭하여 Attach Volume을 선택해서 해당 인스턴스에 붙여줍니다. 이때 Device name은 실제 인스턴스 내에서 사용하므로 기억해둡니다. (<em>AWS에서는 시스템 인터페이스로써 자동으로 매핑해줍니다.</em>)</p>
+
+<p><img src="/ko/assets/images/2016-01-11/attach-volume.png" alt="Attach Volume in AWS EC2 console" /></p>
+
+<p>콘솔에서 모든 준비가 완료되었습니다.</p>
+
+<h1 id="소프트웨어-설정">소프트웨어 설정</h1>
+
+<p>위에서까지를 일반적인 로컬 환경에 입각해 생각해보면, 드라이버를 들고 본체를 뜯어서 하드디스크를 장착을 하고 SATA케이블과 파워케이블을 연결하고 CMOS에서 하드디스크를 인식하는 것까지 확인하는 것과 같습니다. 이제 남은 것은 부팅을 해서 하드디스크를 확인해서 포맷하고 알맞게 사용하는 것이겠죠.</p>
+
+<h2 id="장착-확인">장착 확인</h2>
+
+<p>다음 명령어로 볼륨이 잘 attach 되었는지 확인해 볼 수 있습니다.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>lsblk
+NAME    MAJ:MIN RM   SIZE RO TYPE MOUNTPOINT
+xvda    202:0    0    40G  0 disk 
+<span class="sb">`</span><span class="nt">-xvda1</span> 202:1    0    40G  0 part /
+xvdg    202:80   0   100G  0 disk
+</code></pre></div></div>
+
+<p>여기까지 주의깊게 보셨으면 눈치채셨겠지만, 최근 버전의 리눅스 커널들은<code class="highlighter-rouge">/dev/sdg</code> 식이 아닌 <code class="highlighter-rouge">/dev/xvdg</code>으로 구성됩니다. attach까지는 잘 장착된 것으로 보이네요.</p>
+
+<h3 id="파일시스템-확인">파일시스템 확인</h3>
+
+<p>아무런 파티션 없이 깨끗한 상태이면 다음과 같이 <code class="highlighter-rouge">data</code>로 표시됩니다.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">sudo </span>file <span class="nt">-s</span> /dev/xvdg
+/dev/xvdg: data
+</code></pre></div></div>
+
+<p>참고로 기존에 작업된 내역이 있는 볼륨은 다음과 같이 표시됩니다.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">sudo </span>file <span class="nt">-s</span> /dev/xvdf
+<span class="s1">'/dev/xvdf: Linux rev 1.0 ext4 filesystem data, ...
+</span></code></pre></div></div>
+
+<h3 id="포맷">포맷</h3>
+
+<p>전체 디스크를 포맷합니다. <em>(AWS EBS 자체가 가상디스크이므로 생성할 때 데이터 규모를 산정하고 이후에 전체 디스크를 포맷하는 것이 관리상 편리합니다.)</em></p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">sudo </span>mkfs <span class="nt">-t</span> ext4 /dev/xvdg
+</code></pre></div></div>
+
+<h2 id="마운트">마운트</h2>
+
+<p>마운트를 하면 새 볼륨에 접근이 가능합니다.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">sudo mkdir</span> /backup
+<span class="nv">$ </span><span class="nb">sudo </span>mount /dev/xvdg /backup
+</code></pre></div></div>
+
+<h3 id="영구적인-마운트">영구적인 마운트</h3>
+
+<p>위 방법으로는 시스템 재시작 시에 다시 마운트를 해야합니다. <code class="highlighter-rouge">/etc/fstab</code>에 등록하면 부팅 시 자동으로 마운트됩니다.</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>LABEL=cloudimg-rootfs  /        ext4   defaults,discard  0  0
+/dev/xvdg              /backup  ext4   defaults,nofail   0  0
+</code></pre></div></div>
+
+<hr />
+
+<h4 id="reference">Reference</h4>
+
+<ul>
+  <li><a href="http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-using-volumes.html">AWS 공식 가이드</a></li>
+</ul>
+
+<div id="disqus_thread"></div>
+<script>
+/**
+*  RECOMMENDED CONFIGURATION VARIABLES: EDIT AND UNCOMMENT THE SECTION BELOW TO INSERT DYNAMIC VALUES FROM YOUR PLATFORM OR CMS.
+*  LEARN WHY DEFINING THESE VARIABLES IS IMPORTANT: https://disqus.com/admin/universalcode/#configuration-variables*/
+// var siteUrl = "https://blog.itanoss.kr";
+var siteUrl = "https:\/\/blog.itanoss.kr";
+var disqus_config = function () {
+this.page.url = siteUrl + "/aws%ec%97%90%ec%84%9c-%ed%95%98%eb%93%9c%eb%94%94%ec%8a%a4%ed%81%ac-%ec%b6%94%ea%b0%80%ed%95%98%ea%b8%b0/";
+//this.page.identifier = PAGE_IDENTIFIER; // delegate page.url
+};
+(function() { // DON'T EDIT BELOW THIS LINE
+var d = document, s = d.createElement('script');
+s.src = 'https://itanoss-blog.disqus.com/embed.js';
+s.setAttribute('data-timestamp', +new Date());
+(d.head || d.body).appendChild(s);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+  </div><a class="u-url" href="/ko/aws%EC%97%90%EC%84%9C-%ED%95%98%EB%93%9C%EB%94%94%EC%8A%A4%ED%81%AC-%EC%B6%94%EA%B0%80%ED%95%98%EA%B8%B0/" hidden></a>
+</article>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/ko/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Joonhyeok Im</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">Joonhyeok Im</li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/itanoss"><svg class="svg-icon"><use xlink:href="/ko/assets/minima-social-icons.svg#github"></use></svg> <span class="username">itanoss</span></a></li><li><a href="https://www.twitter.com/itanoss"><svg class="svg-icon"><use xlink:href="/ko/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">itanoss</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p>Software development blog written by Joonhyeok Im</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>

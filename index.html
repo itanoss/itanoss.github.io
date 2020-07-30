@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="google-site-verification" content="xzrMPIPg7SWgPQI8Ky8T_QzIG79VZnGYXER3PmspQU0" />
+    <title>Recognizing your language - Joonhyeok Im</title>
+</head>
+<body>
+<script>
+    var lang = navigator.language || navigator.userLanguage;
+    if (lang.indexOf('ko') == 0)
+        window.location = '/ko/';
+    else
+        window.location = '/en/';
+</script>
+</body>
+</html>

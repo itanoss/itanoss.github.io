@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="ko"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.6.1 -->
+<title>python으로 docker 컨트롤하기 | Joonhyeok Im</title>
+<meta name="generator" content="Jekyll v3.8.7" />
+<meta property="og:title" content="python으로 docker 컨트롤하기" />
+<meta property="og:locale" content="ko" />
+<meta name="description" content="새로 시작한 개인 프로젝트는 python기반인데 docker를 이용한 sandbox 아키텍쳐가 필요해졌습니다. 때문에 python으로 작성된 docker client가 필요해서 찾아보니 docker-py를 발견하게 되었습니다. 일반적인 docker 쉘 커맨드와 동일한 기능을 docker-py를 이용해서 거의 모두 사용할 수 있는데 이를 이용해서 python으로는 어떻게 작성하는 지 정리해보겠습니다." />
+<meta property="og:description" content="새로 시작한 개인 프로젝트는 python기반인데 docker를 이용한 sandbox 아키텍쳐가 필요해졌습니다. 때문에 python으로 작성된 docker client가 필요해서 찾아보니 docker-py를 발견하게 되었습니다. 일반적인 docker 쉘 커맨드와 동일한 기능을 docker-py를 이용해서 거의 모두 사용할 수 있는데 이를 이용해서 python으로는 어떻게 작성하는 지 정리해보겠습니다." />
+<link rel="canonical" href="https://blog.itanoss.kr/ko/python%EC%9C%BC%EB%A1%9C-docker-%EC%BB%A8%ED%8A%B8%EB%A1%A4%ED%95%98%EA%B8%B0/" />
+<meta property="og:url" content="https://blog.itanoss.kr/ko/python%EC%9C%BC%EB%A1%9C-docker-%EC%BB%A8%ED%8A%B8%EB%A1%A4%ED%95%98%EA%B8%B0/" />
+<meta property="og:site_name" content="Joonhyeok Im" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2016-11-03T09:43:54+09:00" />
+<script type="application/ld+json">
+{"headline":"python으로 docker 컨트롤하기","dateModified":"2016-11-03T09:43:54+09:00","datePublished":"2016-11-03T09:43:54+09:00","mainEntityOfPage":{"@type":"WebPage","@id":"https://blog.itanoss.kr/ko/python%EC%9C%BC%EB%A1%9C-docker-%EC%BB%A8%ED%8A%B8%EB%A1%A4%ED%95%98%EA%B8%B0/"},"url":"https://blog.itanoss.kr/ko/python%EC%9C%BC%EB%A1%9C-docker-%EC%BB%A8%ED%8A%B8%EB%A1%A4%ED%95%98%EA%B8%B0/","description":"새로 시작한 개인 프로젝트는 python기반인데 docker를 이용한 sandbox 아키텍쳐가 필요해졌습니다. 때문에 python으로 작성된 docker client가 필요해서 찾아보니 docker-py를 발견하게 되었습니다. 일반적인 docker 쉘 커맨드와 동일한 기능을 docker-py를 이용해서 거의 모두 사용할 수 있는데 이를 이용해서 python으로는 어떻게 작성하는 지 정리해보겠습니다.","@type":"BlogPosting","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/ko/assets/main.css"><link type="application/atom+xml" rel="alternate" href="https://blog.itanoss.kr/ko/feed.xml" title="Joonhyeok Im" />
+    <!-- Google Analytics -->
+    <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-72261394-1', 'auto');
+	ga('send', 'pageview', { 'page': location.pathname + location.search + location.hash});
+	ga('set', 'anonymizeIp', false);
+    </script>
+    <!-- End Google Analytics -->
+    </head>
+<body><header class="site-header" role="banner">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/ko/">Joonhyeok Im</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">python으로 docker 컨트롤하기</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2016-11-03T09:43:54+09:00" itemprop="datePublished">Nov 3, 2016
+      </time></p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <p><a href="https://github.com/itanoss/noritor-core">새로 시작한 개인 프로젝트</a>는 python기반인데 docker를 이용한 sandbox 아키텍쳐가 필요해졌습니다. 때문에 python으로 작성된 docker client가 필요해서 찾아보니 <a href="https://github.com/docker/docker-py">docker-py</a>를 발견하게 되었습니다. 일반적인 docker 쉘 커맨드와 동일한 기능을 docker-py를 이용해서 거의 모두 사용할 수 있는데 이를 이용해서 python으로는 어떻게 작성하는 지 정리해보겠습니다.</p>
+
+<h1 id="초기화">초기화</h1>
+
+<p>제일 처음 해야 할 것은 로컬에 있는 docker daemon과 연동해야 하는데 docker-py에서는 Client라는 인스턴스를 생성하고 이에 내재된 다양한 API를 통해 컨트롤이 가능합니다.</p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">docker</span> <span class="kn">import</span> <span class="n">Client</span>
+<span class="n">cli</span> <span class="o">=</span> <span class="n">Client</span><span class="p">()</span>
+</code></pre></div></div>
+
+<p>인자를 주지 않고 인스턴스를 생성하면 기본적으로 로컬로 접근하게 됩니다. <code class="highlighter-rouge">base_url</code>이라는 인자로 외부 daemon과 연동도 가능한 듯 하네요.</p>
+
+<h1 id="docker-pull"><code class="highlighter-rouge">docker pull</code></h1>
+
+<p>docker hub에서 이미지를 다운로드합니다.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">cli</span> <span class="o">=</span> <span class="n">Client</span><span class="p">(</span><span class="n">base_url</span><span class="o">=</span><span class="s">'tcp://127.0.0.1:2375'</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">cli</span><span class="p">.</span><span class="n">pull</span><span class="p">(</span><span class="s">'busybox'</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">json</span><span class="p">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">json</span><span class="p">.</span><span class="n">loads</span><span class="p">(</span><span class="n">line</span><span class="p">),</span> <span class="n">indent</span><span class="o">=</span><span class="mi">4</span><span class="p">))</span>
+<span class="c1"># { "status": "Pulling image (latest) from busybox", "progressDetail": {}, "id": "e72ac664f4f0" }
+# { "status": "Pulling image (latest) from busybox, endpoint: ...", "progressDetail": {}, "id": "e72ac664f4f0" }
+</span></code></pre></div></div>
+
+<p>인자에 <code class="highlighter-rouge">stream=True</code>로 설정하면 string generator로 리턴되고 <code class="highlighter-rouge">False</code>로 설정하거나 설정하지 않으면 string으로 리턴됩니다.</p>
+
+<h1 id="docker-run"><code class="highlighter-rouge">docker run</code></h1>
+<p>docker를 사용하면서 가장 쓰는 명령어가 컨테이너를 기동하는 명령어인 run일텐데요. docker-py에서는  컨테이너를 생성하고(<code class="highlighter-rouge">.create_container()</code>) 시작하는(<code class="highlighter-rouge">.start()</code>) 절차로 진행할 수 있습니다.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">container</span> <span class="o">=</span> <span class="n">cli</span><span class="p">.</span><span class="n">create_container</span><span class="p">(</span><span class="n">image</span><span class="o">=</span><span class="s">'busybox:latest'</span><span class="p">,</span> <span class="n">command</span><span class="o">=</span><span class="s">'/bin/sleep 30'</span><span class="p">)</span>
+<span class="k">print</span><span class="p">(</span><span class="n">container</span><span class="p">)</span> <span class="c1"># {'Id': '8a61192da2b3bb2d922875585e29b74ec0dc4e0117fcbf84c962204e97564cd7', 'Warnings': None}
+</span>
+<span class="n">response</span> <span class="o">=</span> <span class="n">cli</span><span class="p">.</span><span class="n">start</span><span class="p">(</span><span class="n">container</span><span class="o">=</span><span class="n">container</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="s">'Id'</span><span class="p">))</span>
+<span class="k">print</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>  <span class="c1"># None
+</span></code></pre></div></div>
+
+<p>command line에서 컨테이너를 기동할 때 다양한 옵션을 줄 수 있는데 자주 쓰는 옵션들만 소개해보겠습니다.</p>
+
+<h2 id="docker-run--p"><code class="highlighter-rouge">docker run -p</code></h2>
+<blockquote>
+  <p><code class="highlighter-rouge">-p, -publish=[]</code> : 호스트에 연결된 컨테이너의 특정 포트를 외부에 노출합니다. 보통 웹 서버의 포트를 노출할 때 주로 사용합니다.</p>
+  <ul>
+    <li><code class="highlighter-rouge">&lt;호스트 포트&gt;:&lt;컨테이너 포트&gt;</code> 예) <code class="highlighter-rouge">-p 80:80</code></li>
+    <li><code class="highlighter-rouge">&lt;IP 주소&gt;:&lt;호스트 포트&gt;:&lt;컨테이너 포트&gt;</code> 호스트에 네트워크 인터페이스가 여러 개이거나 IP 주소가 여러 개 일 때 사용합니다. 예) <code class="highlighter-rouge">-p 192.168.0.10:80:80</code></li>
+    <li><code class="highlighter-rouge">&lt;IP 주소&gt;::&lt;컨테이너 포트&gt;</code> 호스트 포트를 설정하지 않으면 호스트의 포트 번호가 무작위로 설정됩니다. 예) <code class="highlighter-rouge">-p 192.168.0.10::80</code></li>
+    <li><code class="highlighter-rouge">&lt;컨테이너 포트&gt;</code> 컨테이너 포트만 설정하면 호스트의 포트 번호가 무작위로 설정됩니다. 예) <code class="highlighter-rouge">-p 80</code></li>
+  </ul>
+</blockquote>
+
+<p>docker-py에서는 <code class="highlighter-rouge">host_config</code>를 생성해서 포트 바인딩해줍니다.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">container</span> <span class="o">=</span> <span class="n">cli</span><span class="p">.</span><span class="n">create_container</span><span class="p">(</span>
+    <span class="s">'busybox'</span><span class="p">,</span> <span class="s">'ls'</span><span class="p">,</span> <span class="n">ports</span><span class="o">=</span><span class="p">[</span><span class="mi">1111</span><span class="p">,</span> <span class="mi">2222</span><span class="p">],</span>
+    <span class="n">host_config</span><span class="o">=</span><span class="n">cli</span><span class="p">.</span><span class="n">create_host_config</span><span class="p">(</span><span class="n">port_bindings</span><span class="o">=</span><span class="p">{</span>
+        <span class="mi">1111</span><span class="p">:</span> <span class="mi">4567</span><span class="p">,</span>
+        <span class="mi">2222</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
+        <span class="mi">3333</span><span class="p">:</span> <span class="p">[</span><span class="mi">1234</span><span class="p">,</span> <span class="mi">5678</span><span class="p">],</span>
+    <span class="p">})</span>
+<span class="p">)</span>
+</code></pre></div></div>
+
+<p>위 코드는 다음과 같이 네트워크 설정을 하게 됩니다.</p>
+<ul>
+  <li>컨테이너 1111번 포트를 호스트 4567번 포트로 bind</li>
+  <li>컨테이너 2222번 포트는 개방하지 않음</li>
+  <li>컨테이너 3333번 포트를 호스트 1234번 포트와 5678번 포트로 bind</li>
+</ul>
+
+<p>포트 바인딩에 대해서 더 자세한 설정은 <a href="https://docker-py.readthedocs.io/en/stable/port-bindings/">여기</a>를 참고해주세요.</p>
+
+<h2 id="docker-run---link"><code class="highlighter-rouge">docker run --link</code></h2>
+
+<blockquote>
+  <p><code class="highlighter-rouge">--link=[]</code> : 컨테이너끼리 연결합니다. <code class="highlighter-rouge">&lt;컨테이너 이름&gt;:&lt;별칭&gt;</code> 형식입니다.</p>
+  <ul>
+    <li><code class="highlighter-rouge">--link="db:db"</code></li>
+  </ul>
+</blockquote>
+
+<p>포트 바인딩에서 했던 것처럼 <code class="highlighter-rouge">host_config</code>를 생성해서 링크를 설정합니다. 다음 예를 보시죠.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">container</span> <span class="o">=</span> <span class="n">cli</span><span class="p">.</span><span class="n">create_container</span><span class="p">(</span>
+    <span class="s">'busybox'</span><span class="p">,</span> <span class="s">'ls'</span><span class="p">,</span> <span class="n">ports</span><span class="o">=</span><span class="p">[</span><span class="mi">1111</span><span class="p">,</span> <span class="mi">2222</span><span class="p">],</span>
+    <span class="n">host_config</span><span class="o">=</span><span class="n">cli</span><span class="p">.</span><span class="n">create_host_config</span><span class="p">(</span><span class="n">links</span><span class="o">=</span><span class="p">[(</span><span class="n">db_container</span><span class="p">[</span><span class="s">'Id'</span><span class="p">],</span> <span class="s">'db'</span><span class="p">)])</span>
+<span class="p">)</span>
+</code></pre></div></div>
+
+<p>이제  busybox 컨테이너 안에서 데이터베이스 컨테이너를 접근할 때 db라는 URL로 접근이 가능합니다. (예: <code class="highlighter-rouge">mongo://db:27017</code> )</p>
+
+<h1 id="docker-ps"><code class="highlighter-rouge">docker ps</code></h1>
+
+<p>컨테이너 목록을 출력합니다.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">cli</span><span class="p">.</span><span class="n">containers</span><span class="p">()</span>
+<span class="c1"># [{'Command': '/bin/sleep 30',
+#  'Created': 1412574844,
+#  'Id': '6e276c9e6e5759e12a6a9214efec6439f80b4f37618e1a6547f28a3da34db07a',
+#  'Image': 'busybox:buildroot-2014.02',
+#  'Names': ['/grave_mayer'],
+#  'Ports': [],
+#  'Status': 'Up 1 seconds'}]
+</span></code></pre></div></div>
+
+<h1 id="docker-stop"><code class="highlighter-rouge">docker stop</code></h1>
+
+<p>기동된 컨테이너를 중지합니다.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">cli</span><span class="p">.</span><span class="n">stop</span><span class="p">(</span><span class="n">container</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="s">'id'</span><span class="p">))</span>
+</code></pre></div></div>
+
+<p><em>프로젝트를 진행하며 계속 추가하도록 하겠습니다~~</em> 🙂</p>
+
+<p>프로젝트에서 사용한 것을 위주로 작성하였고, 이 밖에 전체 기능에 대해서는 <a href="https://docker-py.readthedocs.io/en/stable/">공식 문서</a>를 참고해주세요.</p>
+
+<hr />
+
+<h4 id="reference">Reference</h4>
+
+<ul>
+  <li><a href="https://docker-py.readthedocs.io/en/stable/">docker-py Documentation</a></li>
+  <li><a href="https://www.pyrasis.com/book/DockerForTheReallyImpatient/Chapter20/28">가장 빨리 만나는 Docker 20장 - 28. run</a></li>
+</ul>
+
+<div id="disqus_thread"></div>
+<script>
+/**
+*  RECOMMENDED CONFIGURATION VARIABLES: EDIT AND UNCOMMENT THE SECTION BELOW TO INSERT DYNAMIC VALUES FROM YOUR PLATFORM OR CMS.
+*  LEARN WHY DEFINING THESE VARIABLES IS IMPORTANT: https://disqus.com/admin/universalcode/#configuration-variables*/
+// var siteUrl = "https://blog.itanoss.kr";
+var siteUrl = "https:\/\/blog.itanoss.kr";
+var disqus_config = function () {
+this.page.url = siteUrl + "/python%ec%9c%bc%eb%a1%9c-docker-%ec%bb%a8%ed%8a%b8%eb%a1%a4%ed%95%98%ea%b8%b0/";
+//this.page.identifier = PAGE_IDENTIFIER; // delegate page.url
+};
+(function() { // DON'T EDIT BELOW THIS LINE
+var d = document, s = d.createElement('script');
+s.src = 'https://itanoss-blog.disqus.com/embed.js';
+s.setAttribute('data-timestamp', +new Date());
+(d.head || d.body).appendChild(s);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+  </div><a class="u-url" href="/ko/python%EC%9C%BC%EB%A1%9C-docker-%EC%BB%A8%ED%8A%B8%EB%A1%A4%ED%95%98%EA%B8%B0/" hidden></a>
+</article>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/ko/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Joonhyeok Im</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">Joonhyeok Im</li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/itanoss"><svg class="svg-icon"><use xlink:href="/ko/assets/minima-social-icons.svg#github"></use></svg> <span class="username">itanoss</span></a></li><li><a href="https://www.twitter.com/itanoss"><svg class="svg-icon"><use xlink:href="/ko/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">itanoss</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p>Software development blog written by Joonhyeok Im</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>

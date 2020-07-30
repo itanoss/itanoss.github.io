@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ko"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.6.1 -->
+<title>rclone으로 Cloud Drive 동기화하기 | Joonhyeok Im</title>
+<meta name="generator" content="Jekyll v3.8.7" />
+<meta property="og:title" content="rclone으로 Cloud Drive 동기화하기" />
+<meta property="og:locale" content="ko" />
+<meta name="description" content="저는 Amazon Cloud Drive를 사용하여 사진 2차 백업을 하고 있습니다. 제가 가진 각 장비(모바일, 태블릿, 디지털카메라 등)에서 찍은 사진들을 집에 구축된 NAS에 모아놓고 있었는데, ESXi 를 이용한 가상화 환경 + HDD에 대한 약간의 불신 등으로 2차 백업이 필요해보이더라구요. 프로그래머 답게 자동화 할 수 있는 방법을 찾았는데 예전에는 acd_cli를 사용하고 있었는데 설치가 어려웠고, 집에 리눅스 박스를 재정비하면서 새로운 것을 찾던 중에 rclone을 발견하게 되었습니다." />
+<meta property="og:description" content="저는 Amazon Cloud Drive를 사용하여 사진 2차 백업을 하고 있습니다. 제가 가진 각 장비(모바일, 태블릿, 디지털카메라 등)에서 찍은 사진들을 집에 구축된 NAS에 모아놓고 있었는데, ESXi 를 이용한 가상화 환경 + HDD에 대한 약간의 불신 등으로 2차 백업이 필요해보이더라구요. 프로그래머 답게 자동화 할 수 있는 방법을 찾았는데 예전에는 acd_cli를 사용하고 있었는데 설치가 어려웠고, 집에 리눅스 박스를 재정비하면서 새로운 것을 찾던 중에 rclone을 발견하게 되었습니다." />
+<link rel="canonical" href="https://blog.itanoss.kr/ko/rclone%EC%9C%BC%EB%A1%9C-cloud-drive-%EB%8F%99%EA%B8%B0%ED%99%94%ED%95%98%EA%B8%B0/" />
+<meta property="og:url" content="https://blog.itanoss.kr/ko/rclone%EC%9C%BC%EB%A1%9C-cloud-drive-%EB%8F%99%EA%B8%B0%ED%99%94%ED%95%98%EA%B8%B0/" />
+<meta property="og:site_name" content="Joonhyeok Im" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2016-09-06T22:35:58+09:00" />
+<script type="application/ld+json">
+{"headline":"rclone으로 Cloud Drive 동기화하기","dateModified":"2016-09-06T22:35:58+09:00","datePublished":"2016-09-06T22:35:58+09:00","mainEntityOfPage":{"@type":"WebPage","@id":"https://blog.itanoss.kr/ko/rclone%EC%9C%BC%EB%A1%9C-cloud-drive-%EB%8F%99%EA%B8%B0%ED%99%94%ED%95%98%EA%B8%B0/"},"url":"https://blog.itanoss.kr/ko/rclone%EC%9C%BC%EB%A1%9C-cloud-drive-%EB%8F%99%EA%B8%B0%ED%99%94%ED%95%98%EA%B8%B0/","description":"저는 Amazon Cloud Drive를 사용하여 사진 2차 백업을 하고 있습니다. 제가 가진 각 장비(모바일, 태블릿, 디지털카메라 등)에서 찍은 사진들을 집에 구축된 NAS에 모아놓고 있었는데, ESXi 를 이용한 가상화 환경 + HDD에 대한 약간의 불신 등으로 2차 백업이 필요해보이더라구요. 프로그래머 답게 자동화 할 수 있는 방법을 찾았는데 예전에는 acd_cli를 사용하고 있었는데 설치가 어려웠고, 집에 리눅스 박스를 재정비하면서 새로운 것을 찾던 중에 rclone을 발견하게 되었습니다.","@type":"BlogPosting","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/ko/assets/main.css"><link type="application/atom+xml" rel="alternate" href="https://blog.itanoss.kr/ko/feed.xml" title="Joonhyeok Im" />
+    <!-- Google Analytics -->
+    <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-72261394-1', 'auto');
+	ga('send', 'pageview', { 'page': location.pathname + location.search + location.hash});
+	ga('set', 'anonymizeIp', false);
+    </script>
+    <!-- End Google Analytics -->
+    </head>
+<body><header class="site-header" role="banner">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/ko/">Joonhyeok Im</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">rclone으로 Cloud Drive 동기화하기</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2016-09-06T22:35:58+09:00" itemprop="datePublished">Sep 6, 2016
+      </time></p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <p>저는 Amazon Cloud Drive를 사용하여 사진 2차 백업을 하고 있습니다. 제가 가진 각 장비(모바일, 태블릿, 디지털카메라 등)에서 찍은 사진들을 집에 구축된 NAS에 모아놓고 있었는데, ESXi 를 이용한 가상화 환경 + HDD에 대한 약간의 불신 등으로 2차 백업이 필요해보이더라구요. 프로그래머 답게 자동화 할 수 있는 방법을 찾았는데 예전에는 <a href="https://github.com/yadayada/acd_cli" target="_blank">acd_cli</a>를 사용하고 있었는데 설치가 어려웠고, 집에 리눅스 박스를 재정비하면서 새로운 것을 찾던 중에 <a href="http://rclone.org/" target="_blank">rclone</a>을 발견하게 되었습니다.</p>
+
+<p>설치법이 가이드 되어 있는 대로 설치를 하고 나면 제일 처음 해야 할 일은 환경 설정입니다.</p>
+
+<pre class="lang:sh decode:true" title="Run config">$ rclone config
+No remotes found - make a new one
+n) New remote
+s) Set configuration password
+q) Quit config
+n/s/q&gt;</pre>
+
+<p>새로 추가하기 위해 n을 타입하면 이름과 동기화할 클라우드 스토리지 서비스를 선택할 수 있습니다.</p>
+
+<pre class="lang:sh decode:true" title="Choose one of cloud services">n/s/q&gt; n
+name&gt; acd
+Type of storage to configure.
+Choose a number from below, or type in your own value
+ 1 / Amazon Drive
+   \ "amazon cloud drive"
+ 2 / Amazon S3 (also Dreamhost, Ceph, Minio)
+   \ "s3"
+ 3 / Backblaze B2
+   \ "b2"
+ 4 / Dropbox
+   \ "dropbox"
+ 5 / Encrypt/Decrypt a remote
+   \ "crypt"
+ 6 / Google Cloud Storage (this is not Google Drive)
+   \ "google cloud storage"
+ 7 / Google Drive
+   \ "drive"
+ 8 / Hubic
+   \ "hubic"
+ 9 / Local Disk
+   \ "local"
+10 / Microsoft OneDrive
+   \ "onedrive"
+11 / Openstack Swift (Rackspace Cloud Files, Memset Memstore, OVH)
+   \ "swift"
+12 / Yandex Disk
+   \ "yandex"
+Storage&gt;</pre>
+
+<p>세부 설정인데, 잘 모르면 Enter만 쳐도 괜찮다고 하네요.</p>
+
+<pre class="lang:sh decode:true " title="Detail setup">Storage&gt; 1
+Amazon Application Client Id - leave blank normally.
+client_id&gt;
+Amazon Application Client Secret - leave blank normally.
+client_secret&gt;
+Remote config
+Use auto config?
+ * Say Y if not sure
+ * Say N if you are working on a remote or headless machine
+y) Yes
+n) No
+y/n&gt; y
+If your browser doesn't open automatically go to the following link: http://127.0.0.1:53682/auth
+Log in and authorize rclone for access
+Waiting for code...</pre>
+
+<p>위에 나온 주소를 웹브라우저로 열면 Amazon OAuth 창이 열려 rclone 웹앱에 대한 권한 획득 페이지가 나옵니다. 허용을 하게 되면 rclone이 이를 캐치하여 다음으로 진행되게 됩니다. (로컬IP=127.0.0.1로만 접근이 됩니다. 다른 컴퓨터에서 접근이 불가하더라구요. <em>아마도 bind=127.0.0.1식으로 구현되어 있는 것 같습니다.</em> 따라서 저는 Ubuntu server 버전을 설치하여 <a href="https://en.wikipedia.org/wiki/ELinks" target="_blank">elinks</a>와 같은 텍스트 웹브라우저를 사용하여 접근하였습니다.)</p>
+
+<pre class="lang:sh decode:true" title="Done of wiring rclone and acd">Waiting for code...
+Got code
+--------------------
+[acd]
+client_id =
+client_secret =
+token = {"access_token":"SECURED ACCESS TOKEN IN HERE","token_type":"bearer","refresh_token":"SECURED REFRESH TOKEN IN HERE","expiry":"2016-09-06T23:04:13.496719067+09:00"}
+--------------------
+y) Yes this is OK
+e) Edit this remote
+d) Delete this remote
+y/e/d&gt; y
+Current remotes:
+
+Name Type
+==== ====
+acd amazon cloud drive
+
+e) Edit existing remote
+n) New remote
+d) Delete remote
+s) Set configuration password
+q) Quit config
+e/n/d/s/q&gt;
+</pre>
+
+<p>이제 설정은 끝났으니 잘 되나 봅니다.</p>
+
+<pre class="lang:sh decode:true " title="Run ls">$ rclone ls acd:/
+...
+  5543877 Mobile Photos/20160404_115526.jpg
+  5413241 Mobile Photos/20160404_115552.jpg
+...
+2016/09/06 22:07:16
+Transferred:      0 Bytes (0 Bytes/s)
+Errors:                 0
+Checks:                 0
+Transferred:            0
+Elapsed time:        9.1s</pre>
+
+<p>잘 접근이 되면 <a href="http://rclone.org/commands/rclone_sync/">사용법</a>과 같이 간단하게 동기화를 실행할 수 있습니다.</p>
+
+<blockquote>
+  <p><code class="highlighter-rouge">rclone sync source:path dest:path</code></p>
+</blockquote>
+
+<pre class="lang:sh decode:true" title="Run sync">$ rclone sync /mnt/nas-photo/ acd:/
+2016/09/06 22:32:52
+Transferred:   127.256 MBytes (2.041 MBytes/s)
+Errors:                 0
+Checks:              1952
+Transferred:           31
+Elapsed time:      1m2.3s
+Transferring:
+ *             Mobile Photos/20160603_203700.jpg: 100% done. avg:   58.1, cur:  181.2 kByte/s. ETA: 0s
+ *         Mobile Photos/IMG_20160819_193057.jpg: 100% done. avg:   11.7, cur:   48.5 kByte/s. ETA: 0s
+ *        Mobile Photos/B612_20160606_183804.jpg: 100% done. avg:   19.3, cur:   52.4 kByte/s. ETA: 0s
+ * ...le Photos/C360_2016-05-28-19-28-12-730.jpg: 100% done. avg:  473.2, cur:  371.4 kByte/s. ETA: 0s
+</pre>
+
+<p>로컬 리소스는 source, dest 등의 namespace를 지정하지 않고 사용하면 되는 듯 합니다. 🙂</p>
+
+<div id="disqus_thread"></div>
+<script>
+/**
+*  RECOMMENDED CONFIGURATION VARIABLES: EDIT AND UNCOMMENT THE SECTION BELOW TO INSERT DYNAMIC VALUES FROM YOUR PLATFORM OR CMS.
+*  LEARN WHY DEFINING THESE VARIABLES IS IMPORTANT: https://disqus.com/admin/universalcode/#configuration-variables*/
+// var siteUrl = "https://blog.itanoss.kr";
+var siteUrl = "https:\/\/blog.itanoss.kr";
+var disqus_config = function () {
+this.page.url = siteUrl + "/rclone%ec%9c%bc%eb%a1%9c-cloud-drive-%eb%8f%99%ea%b8%b0%ed%99%94%ed%95%98%ea%b8%b0/";
+//this.page.identifier = PAGE_IDENTIFIER; // delegate page.url
+};
+(function() { // DON'T EDIT BELOW THIS LINE
+var d = document, s = d.createElement('script');
+s.src = 'https://itanoss-blog.disqus.com/embed.js';
+s.setAttribute('data-timestamp', +new Date());
+(d.head || d.body).appendChild(s);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+  </div><a class="u-url" href="/ko/rclone%EC%9C%BC%EB%A1%9C-cloud-drive-%EB%8F%99%EA%B8%B0%ED%99%94%ED%95%98%EA%B8%B0/" hidden></a>
+</article>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/ko/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Joonhyeok Im</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">Joonhyeok Im</li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/itanoss"><svg class="svg-icon"><use xlink:href="/ko/assets/minima-social-icons.svg#github"></use></svg> <span class="username">itanoss</span></a></li><li><a href="https://www.twitter.com/itanoss"><svg class="svg-icon"><use xlink:href="/ko/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">itanoss</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p>Software development blog written by Joonhyeok Im</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>

@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ko"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.6.1 -->
+<title>Immutable class JSON Serialization with Jackson | Joonhyeok Im</title>
+<meta name="generator" content="Jekyll v3.8.7" />
+<meta property="og:title" content="Immutable class JSON Serialization with Jackson" />
+<meta property="og:locale" content="ko" />
+<meta name="description" content="Spring Boot와 같은 대다수 Web Framework에서 Controller에서 Parameter 또는 Return value로 클래스 타입으로 지정하면 매우 간편하게 serialization이 되어 우리가 원하는 결과로 나타내줍니다. 그걸 가능하게 하는 건 _jackson_이라는 JSON library를 이용해서 인데, 일반적으로 json으로 serialize하는 대상은 value object일 경우가 대다수일텐데 (아닌 경우가 있을까요?..) 자바와 같이 멀티스래딩 환경에서는 해당 객체를 immutable서로 하는 것이 안전합니다." />
+<meta property="og:description" content="Spring Boot와 같은 대다수 Web Framework에서 Controller에서 Parameter 또는 Return value로 클래스 타입으로 지정하면 매우 간편하게 serialization이 되어 우리가 원하는 결과로 나타내줍니다. 그걸 가능하게 하는 건 _jackson_이라는 JSON library를 이용해서 인데, 일반적으로 json으로 serialize하는 대상은 value object일 경우가 대다수일텐데 (아닌 경우가 있을까요?..) 자바와 같이 멀티스래딩 환경에서는 해당 객체를 immutable서로 하는 것이 안전합니다." />
+<link rel="canonical" href="https://blog.itanoss.kr/ko/immutable-class-json-serialization-with-jackson/" />
+<meta property="og:url" content="https://blog.itanoss.kr/ko/immutable-class-json-serialization-with-jackson/" />
+<meta property="og:site_name" content="Joonhyeok Im" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2016-05-27T13:44:44+09:00" />
+<script type="application/ld+json">
+{"headline":"Immutable class JSON Serialization with Jackson","dateModified":"2016-05-27T13:44:44+09:00","datePublished":"2016-05-27T13:44:44+09:00","mainEntityOfPage":{"@type":"WebPage","@id":"https://blog.itanoss.kr/ko/immutable-class-json-serialization-with-jackson/"},"url":"https://blog.itanoss.kr/ko/immutable-class-json-serialization-with-jackson/","description":"Spring Boot와 같은 대다수 Web Framework에서 Controller에서 Parameter 또는 Return value로 클래스 타입으로 지정하면 매우 간편하게 serialization이 되어 우리가 원하는 결과로 나타내줍니다. 그걸 가능하게 하는 건 _jackson_이라는 JSON library를 이용해서 인데, 일반적으로 json으로 serialize하는 대상은 value object일 경우가 대다수일텐데 (아닌 경우가 있을까요?..) 자바와 같이 멀티스래딩 환경에서는 해당 객체를 immutable서로 하는 것이 안전합니다.","@type":"BlogPosting","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/ko/assets/main.css"><link type="application/atom+xml" rel="alternate" href="https://blog.itanoss.kr/ko/feed.xml" title="Joonhyeok Im" />
+    <!-- Google Analytics -->
+    <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-72261394-1', 'auto');
+	ga('send', 'pageview', { 'page': location.pathname + location.search + location.hash});
+	ga('set', 'anonymizeIp', false);
+    </script>
+    <!-- End Google Analytics -->
+    </head>
+<body><header class="site-header" role="banner">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/ko/">Joonhyeok Im</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">Immutable class JSON Serialization with Jackson</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2016-05-27T13:44:44+09:00" itemprop="datePublished">May 27, 2016
+      </time></p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <p>Spring Boot와 같은 대다수 Web Framework에서 Controller에서 Parameter 또는 Return value로 클래스 타입으로 지정하면 매우 간편하게 serialization이 되어 우리가 원하는 결과로 나타내줍니다. 그걸 가능하게 하는 건 _jackson_이라는 JSON library를 이용해서 인데, 일반적으로 json으로 serialize하는 대상은 value object일 경우가 대다수일텐데 (아닌 경우가 있을까요?..) 자바와 같이 멀티스래딩 환경에서는 해당 객체를 immutable서로 하는 것이 안전합니다.</p>
+
+<blockquote>
+  <p>The advantage of immutability comes with concurrency. It is difficult to maintain correctness in mutable objects, as multiple threads could be trying to change the state of the same object, leading to some threads seeing a different state of the same object, depending on the timing of the reads and writes to the said object.</p>
+
+  <p>By having an immutable object, one can ensure that all threads that are looking at the object will be seeing the same state, as the state of an immutable object will not change.</p>
+</blockquote>
+
+<p>(출처: <a href="http://stackoverflow.com/questions/3162665/immutable-class">http://stackoverflow.com/questions/3162665/immutable-class</a>)</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">class</span> <span class="nc">Position</span> <span class="o">{</span>
+    <span class="kd">private</span> <span class="kt">int</span> <span class="n">x</span><span class="o">;</span>
+    <span class="kd">private</span> <span class="kt">int</span> <span class="n">y</span><span class="o">;</span>
+
+    <span class="kd">public</span> <span class="nf">Position</span><span class="o">(</span><span class="kt">int</span> <span class="n">x</span><span class="o">,</span> <span class="kt">int</span> <span class="n">y</span><span class="o">)</span> <span class="o">{</span>
+        <span class="k">this</span><span class="o">.</span><span class="na">x</span> <span class="o">=</span> <span class="n">x</span><span class="o">;</span>
+        <span class="k">this</span><span class="o">.</span><span class="na">y</span> <span class="o">=</span> <span class="n">y</span><span class="o">;</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>위와 같은 클래스가 있을 때 이를 다음과 같이 테스트를 해보면 에러가 발생합니다.</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">class</span> <span class="nc">JsonCreateTest</span> <span class="o">{</span>
+
+    <span class="kd">private</span> <span class="nc">ObjectMapper</span> <span class="n">objectMapper</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">ObjectMapper</span><span class="o">();;</span>
+
+    <span class="nd">@Before</span>
+    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">setUp</span><span class="o">()</span> <span class="kd">throws</span> <span class="nc">Exception</span> <span class="o">{</span>
+        <span class="n">objectMapper</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">ObjectMapper</span><span class="o">();</span>
+    <span class="o">}</span>
+
+    <span class="kd">private</span> <span class="o">&lt;</span><span class="no">T</span><span class="o">&gt;</span> <span class="nc">String</span> <span class="nf">toJson</span><span class="o">(</span><span class="no">T</span> <span class="n">object</span><span class="o">)</span> <span class="kd">throws</span> <span class="nc">JsonProcessingException</span> <span class="o">{</span>
+        <span class="k">return</span> <span class="n">objectMapper</span><span class="o">.</span><span class="na">writeValueAsString</span><span class="o">(</span><span class="n">object</span><span class="o">);</span>
+    <span class="o">}</span>
+
+    <span class="nd">@Test</span>
+    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">position</span><span class="o">()</span> <span class="kd">throws</span> <span class="nc">Exception</span> <span class="o">{</span>
+        <span class="nc">Position</span> <span class="n">subject</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">Position</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">);</span>
+
+        <span class="nc">String</span> <span class="n">json</span> <span class="o">=</span> <span class="n">toJson</span><span class="o">(</span><span class="n">subject</span><span class="o">);</span>
+        <span class="n">assertThat</span><span class="o">(</span><span class="n">json</span><span class="o">).</span><span class="na">isEqualTo</span><span class="o">(</span><span class="s">"{\"x\":1,\"y\":2}"</span><span class="o">);</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>com.fasterxml.jackson.databind.JsonMappingException: No serializer found for class omok.engine.Position and no properties discovered to create BeanSerializer (to avoid exception, disable SerializationFeature.FAIL_ON_EMPTY_BEANS) )
+	at com.fasterxml.jackson.databind.ser.impl.UnknownSerializer.failForEmpty(UnknownSerializer.java:69)
+	at com.fasterxml.jackson.databind.ser.impl.UnknownSerializer.serialize(UnknownSerializer.java:32)
+	at com.fasterxml.jackson.databind.ser.DefaultSerializerProvider.serializeValue(DefaultSerializerProvider.java:130)
+	at com.fasterxml.jackson.databind.ObjectMapper._configAndWriteValue(ObjectMapper.java:3559)
+	at com.fasterxml.jackson.databind.ObjectMapper.writeValueAsString(ObjectMapper.java:2927)
+	at omok.engine.JsonCreateTest.toJson(JsonCreateTest.java:20)
+</code></pre></div></div>
+
+<p><em>jackson</em> 은 기본적으로 parameter가 없는 기본 생성자를 필요로 합니다. 해당 인스턴스를 생성하기 위해서 말이죠. 그 후에 하위 필드의 값이나 또 다른 클래스 인스턴스들을 serialize하면서 읽어들이고 있습니다. 구글링을 조금 하면 위 <code class="highlighter-rouge">Position</code> 클래스는 다음과 같이 수정할 수 없습니다.</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">class</span> <span class="nc">Position</span> <span class="o">{</span>
+    <span class="kd">private</span> <span class="kd">final</span> <span class="kt">int</span> <span class="n">x</span><span class="o">;</span>
+    <span class="kd">private</span> <span class="kd">final</span> <span class="kt">int</span> <span class="n">y</span><span class="o">;</span>
+
+    <span class="nd">@JsonCreator</span>
+    <span class="kd">public</span> <span class="nf">Position</span><span class="o">(</span><span class="nd">@JsonProperty</span><span class="o">(</span><span class="s">"x"</span><span class="o">)</span> <span class="kt">int</span> <span class="n">x</span><span class="o">,</span> <span class="nd">@JsonProperty</span><span class="o">(</span><span class="s">"y"</span><span class="o">)</span> <span class="kt">int</span> <span class="n">y</span><span class="o">)</span> <span class="o">{</span>
+        <span class="k">this</span><span class="o">.</span><span class="na">x</span> <span class="o">=</span> <span class="n">x</span><span class="o">;</span>
+        <span class="k">this</span><span class="o">.</span><span class="na">y</span> <span class="o">=</span> <span class="n">y</span><span class="o">;</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>하지만 같은 오류가 발생합니다. 왜일까요?</p>
+
+<p>답은 JSON serialize 대상인 필드들을 접근 할 수 없어서 입니다. <code class="highlighter-rouge">Position</code> 클래스를 Inner class로 선언했거나 값을 꺼내서 핸들링하지 않아서 그대로 <code class="highlighter-rouge">private</code>으로 두었지만 Jackson library가 serialize하는 과정 중에 해당 필드를 접근하는 듯 합니다. 따라서 다음과 같이 두가지 방법으로 노출시켜야 합니다.</p>
+
+<ul>
+  <li>대상 필드를 public으로 노출</li>
+  <li>대상 필드에 대한 getter 생성</li>
+</ul>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">class</span> <span class="nc">Position</span> <span class="o">{</span>
+    <span class="kd">public</span> <span class="kd">final</span> <span class="kt">int</span> <span class="n">x</span><span class="o">;</span>
+    <span class="kd">public</span> <span class="kd">final</span> <span class="kt">int</span> <span class="n">y</span><span class="o">;</span>
+
+    <span class="nd">@JsonCreator</span>
+    <span class="kd">public</span> <span class="nf">Position</span><span class="o">(</span><span class="nd">@JsonProperty</span><span class="o">(</span><span class="s">"x"</span><span class="o">)</span> <span class="kt">int</span> <span class="n">x</span><span class="o">,</span> <span class="nd">@JsonProperty</span><span class="o">(</span><span class="s">"y"</span><span class="o">)</span> <span class="kt">int</span> <span class="n">y</span><span class="o">)</span> <span class="o">{</span>
+        <span class="k">this</span><span class="o">.</span><span class="na">x</span> <span class="o">=</span> <span class="n">x</span><span class="o">;</span>
+        <span class="k">this</span><span class="o">.</span><span class="na">y</span> <span class="o">=</span> <span class="n">y</span><span class="o">;</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>저는 Immutable class에는 getter보다 직접 접근하는 게 좋더라구요. 🙂</p>
+
+<div id="disqus_thread"></div>
+<script>
+/**
+*  RECOMMENDED CONFIGURATION VARIABLES: EDIT AND UNCOMMENT THE SECTION BELOW TO INSERT DYNAMIC VALUES FROM YOUR PLATFORM OR CMS.
+*  LEARN WHY DEFINING THESE VARIABLES IS IMPORTANT: https://disqus.com/admin/universalcode/#configuration-variables*/
+// var siteUrl = "https://blog.itanoss.kr";
+var siteUrl = "https:\/\/blog.itanoss.kr";
+var disqus_config = function () {
+this.page.url = siteUrl + "/immutable-class-json-serialization-with-jackson/";
+//this.page.identifier = PAGE_IDENTIFIER; // delegate page.url
+};
+(function() { // DON'T EDIT BELOW THIS LINE
+var d = document, s = d.createElement('script');
+s.src = 'https://itanoss-blog.disqus.com/embed.js';
+s.setAttribute('data-timestamp', +new Date());
+(d.head || d.body).appendChild(s);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+  </div><a class="u-url" href="/ko/immutable-class-json-serialization-with-jackson/" hidden></a>
+</article>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/ko/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Joonhyeok Im</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">Joonhyeok Im</li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/itanoss"><svg class="svg-icon"><use xlink:href="/ko/assets/minima-social-icons.svg#github"></use></svg> <span class="username">itanoss</span></a></li><li><a href="https://www.twitter.com/itanoss"><svg class="svg-icon"><use xlink:href="/ko/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">itanoss</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p>Software development blog written by Joonhyeok Im</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>
